@@ -372,16 +372,16 @@ for channelNumber = 1 : numberOfChannels,
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %                Interp Frequency to be same for all omega scans           %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    frequencies1 = linspace(min(frequencyRange), max(frequencyRange), horizontalResolution);
-    newNormalizedEnergy = zeros(horizontalResolution, horizontalResolution);
-    for i = 1:length(times);
-        columnNormalizedEnergies = normalizedEnergies(:,i);
-        columnNormalizedEnergies = interp1(frequencies,columnNormalizedEnergies, frequencies1,'linear');
-      newNormalizedEnergy(:, i) = columnNormalizedEnergies;
-        
-    end
-    frequencies=frequencies1;
-    normalizedEnergies = newNormalizedEnergy;
+%     frequencies1 = linspace(min(frequencyRange), max(frequencyRange), horizontalResolution);
+%     newNormalizedEnergy = zeros(horizontalResolution, horizontalResolution);
+%     for i = 1:length(times);
+%         columnNormalizedEnergies = normalizedEnergies(:,i);
+%         columnNormalizedEnergies = interp1(frequencies,columnNormalizedEnergies, frequencies1,'linear');
+%       newNormalizedEnergy(:, i) = columnNormalizedEnergies;
+%         
+%     end
+%     frequencies=frequencies1;
+%     normalizedEnergies = newNormalizedEnergy;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %                         set colormap scaling                             %
@@ -429,7 +429,7 @@ for channelNumber = 1 : numberOfChannels,
     if abs(diff(timeRange)) < millisecondThreshold,
       surf(times * 1e3, frequencies, normalizedEnergies, normalizedEnergies);
     elseif abs(diff(timeRange)) < secondThreshold,
-      surf(times * 1, frequencies, normalizedEnergies, normalizedEnergies);
+      imagesc(times * 1, frequencies, normalizedEnergies, normalizedEnergies);
     elseif abs(diff(timeRange)) < minuteThreshold,
       surf(times / 60, frequencies, normalizedEnergies, normalizedEnergies);
     elseif abs(diff(timeRange)) < hourThreshold,

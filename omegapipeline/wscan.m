@@ -89,7 +89,6 @@ defaultWhiteNoiseFalseRate = 1e-2;
 defaultSearchWindowDuration = 0.1;
 defaultPlotTimeRanges = [1 4 16];
 defaultPlotFrequencyRange = [];
-defaultPlotMaximumEnergyLoss = 0.2;
 defaultPlotNormalizedEnergyRange = [0 25.5];
 defaultAlwaysPlotFlag = 0;
 
@@ -100,8 +99,6 @@ defaultAlwaysPlotFlag = 0;
 % search parameters
 transientFactor = 2;
 outlierFactor = 2.0;
-durationInflation = 1.0;
-bandwidthInflation = 1.0;
 
 % display parameters
 plotHorizontalResolution = 512;
@@ -117,7 +114,7 @@ maximumMosaics = 1e4;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % verify correct number of input arguments
-error(nargchk(1, 7, nargin, 'struct'));
+narginchk(1, 7);
 
 % apply default arguments
 if (nargin < 3) || isempty(configurationFile),
@@ -211,13 +208,13 @@ while ~feof(configurationFID),
   configurationLine = fgetl(configurationFID);
 
   % remove any comments
-  commentIndices = findstr(configurationLine, '#');
+  commentIndices = strfind(configurationLine, '#');
   if ~isempty(commentIndices),
     configurationLine = configurationLine(1 : (commentIndices(1) - 1));
   end
 
   % remove leading and trailing blanks
-  configurationLine = fliplr(deblank(fliplr(deblank(configurationLine))));
+  configurationLine = strtrim(configurationLine);
 
   % if empty line, skip to the next line
   if isempty(configurationLine),
@@ -721,25 +718,6 @@ for channelNumber = 1 : numberOfChannels,
 
   % display status
   wlog(debugLevel, 1, 'processing channel %s...\n', channelNameString);
-
-  % censor channels used for "blind" injections
-  if any(strcmp(channelNameString, {'H1:LSC-ETMY_EXC_DAQ', ...
-                                    'H2:LSC-ETMY_EXC_DAQ', ...
-                                    'L1:LSC-ETMY_EXC_DAQ'})),
-    wlog(debugLevel, 1, '  WARNING: %s censored for "blind" injections.\n', ...
-            channelNameString);
-    continue
-  end
-
-  % override censor for channels used in "blind" injections
-  if any(strcmp(channelNameString, {'H1:LSC-ETMY_EXC_DAQ!', ...
-                                    'H2:LSC-ETMY_EXC_DAQ!', ...
-                                    'L1:LSC-ETMY_EXC_DAQ!'})),
-    channelName = strrep(channelName, '!', '');
-    channelNameString = strrep(channelName, '!', '');
-    wlog(debugLevel, 1, '  WARNING: overriding censor for %s.\n', ...
-            channelNameString);
-  end
   
   % find closest sample time to event time
   centerTime = floor(eventTime) + ...
@@ -792,7 +770,7 @@ for channelNumber = 1 : numberOfChannels,
 
   % high pass filter and whiten data
   wlog(debugLevel, 2, '  conditioning data...\n');
-  [rawData, highPassedData, whitenedData] = ...
+  [~, ~, whitenedData] = ...
       wcondition(rawData, tiling);
 
   % q transform whitened data
@@ -894,7 +872,7 @@ for channelNumber = 1 : numberOfChannels,
   % recover time series data
   %rawData = wifft(rawData);
   %highPassedData = wifft(highPassedData);
-  whitenedData = wifft(whitenedData);
+  %whitenedData = wifft(whitenedData);
 
   end % generateReport
   toc;
@@ -903,23 +881,23 @@ for channelNumber = 1 : numberOfChannels,
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   % identify most significant raw transform tile
-  wlog(debugLevel, 2, '  measuring peak properties...\n');
-  thresholdReferenceTime = ...
-      whitenedProperties{1}.peakTime;
-  thresholdTimeRange = ...
-      whitenedProperties{1}.peakDuration * [-1 +1];
-  thresholdFrequencyRange = ...
-      whitenedProperties{1}.peakFrequency + ...
-      whitenedProperties{1}.peakBandwidth * [-1 +1];
-  thresholdQRange = [];
+  %wlog(debugLevel, 2, '  measuring peak properties...\n');
+  %thresholdReferenceTime = ...
+  %    whitenedProperties{1}.peakTime;
+  %thresholdTimeRange = ...
+  %    whitenedProperties{1}.peakDuration * [-1 +1];
+  %thresholdFrequencyRange = ...
+  %    whitenedProperties{1}.peakFrequency + ...
+  %    whitenedProperties{1}.peakBandwidth * [-1 +1];
+  %thresholdQRange = [];
   %rawProperties = ...
   %    wmeasure(rawTransform, tiling, startTime, thresholdReferenceTime, ...
   %             thresholdTimeRange, thresholdFrequencyRange, thresholdQRange, ...
   %             debugLevel);
   
   % most significant tile properties
-  mostSignificantTime = ...
-      whitenedProperties{1}.peakTime;
+  %mostSignificantTime = ...
+  %    whitenedProperties{1}.peakTime;
   mostSignificantFrequency = ...
       whitenedProperties{1}.peakFrequency;
   mostSignificantQ = ...
@@ -947,8 +925,8 @@ for channelNumber = 1 : numberOfChannels,
   if generateReport,
 
   % html for most significant tile properties
-  mostSignificantTimeHtml = ...
-      sprintf('%.3f', mostSignificantTime);
+  %mostSignificantTimeHtml = ...
+  %    sprintf('%.3f', mostSignificantTime);
   mostSignificantFrequencyHtml = ...
       sprintf('%.1f', mostSignificantFrequency);
   mostSignificantQHtml = ...
@@ -997,47 +975,6 @@ for channelNumber = 1 : numberOfChannels,
   timeRangeString = sprintf('''%.2f'', ', plotTimeRanges);
   timeRangeString = timeRangeString(1 : end - 2);
 
-  %fprintf(htmlFID, '  time series:\n');
-  %fprintf(htmlFID, '<a href="javascript:showImage(''%s'', ''%s'',\n', ...
-  %        uniqueID, channelNameString);
-  %fprintf(htmlFID, '[%s], ''timeseries_raw'');">raw</a>,\n', ...
-  %        timeRangeString);
-  %fprintf(htmlFID, '<a href="javascript:showImage(''%s'', ''%s'',\n', ...
-  %        uniqueID, channelNameString);
-  %fprintf(htmlFID, '[%s], ''timeseries_highpassed'');">high passed</a>,\n', ...
-  %        timeRangeString);
-  %fprintf(htmlFID, '<a href="javascript:showImage(''%s'', ''%s'',\n', ...
-  %        uniqueID, channelNameString);
-  %fprintf(htmlFID, '[%s], ''timeseries_whitened'');">whitened</a>\n', ...
-  %        timeRangeString);
-  %fprintf(htmlFID, 'spectrogram:\n');
-  %fprintf(htmlFID, '<a href="javascript:showImage(''%s'', ''%s'',\n', ...
-  %        uniqueID, channelNameString);
-  %fprintf(htmlFID, '[%s], ''spectrogram_raw'');">raw</a>,\n', ...
-  %        timeRangeString);
-  fprintf(htmlFID, 'spectrogram:\n');
-  fprintf(htmlFID, '<a href="javascript:showImage(''%s'', ''%s'',\n', ...
-          uniqueID, channelNameString);
-  fprintf(htmlFID, '[%s], ''spectrogram_whitened'');">whitened</a>,\n', ...
-          timeRangeString);
-  fprintf(htmlFID, '<a href="javascript:showImage(''%s'', ''%s'',\n', ...
-          uniqueID, channelNameString);
-  fprintf(htmlFID, '[%s], ''spectrogram_autoscaled'');">autoscaled</a>\n', ...
-          timeRangeString);
-  fprintf(htmlFID, '| eventgram:\n');
-  %fprintf(htmlFID, '<a href="javascript:showImage(''%s'', ''%s'',\n', ...
-  %        uniqueID, channelNameString);
-  %fprintf(htmlFID, '[%s], ''eventgram_raw'');">raw</a>,\n', ...
-  %        timeRangeString);
-  fprintf(htmlFID, '<a href="javascript:showImage(''%s'', ''%s'',\n', ...
-          uniqueID, channelNameString);
-  fprintf(htmlFID, '[%s], ''eventgram_whitened'');">whitened</a>,\n', ...
-          timeRangeString);
-  fprintf(htmlFID, '<a href="javascript:showImage(''%s'', ''%s'',\n', ...
-          uniqueID, channelNameString);
-  fprintf(htmlFID, '[%s], ''eventgram_autoscaled'');">autoscaled</a>\n', ...
-          timeRangeString);
-  fprintf(htmlFID, '<br />\n');
 
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   %                       begin loop over time ranges                          %
@@ -1048,78 +985,6 @@ for channelNumber = 1 : numberOfChannels,
 
     % report status
     wlog(debugLevel, 2, '  processing %.2f second time range...\n', plotTimeRange);
-
-    % determine start and stop times of figures
-    plotStartTime = timeRange / 2 - plotTimeRange / 2;
-    plotStopTime = timeRange / 2 + plotTimeRange / 2;
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                         plot raw time series                             %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % plot raw time series
-    %wlog(debugLevel, 2, '    plotting raw time series...\n');
-    %clf;
-    %wtimeseries(rawData, tiling, startTime, centerTime, ...
-    %            plotTimeRange * [-1 +1] / 2, channelNameString);
-
-    % print raw time series to file
-    %wlog(debugLevel, 2, '    printing raw time series...\n');
-    %figName = sprintf('%s_%s_%.2f_timeseries_raw', ...
-    %                  uniqueID, channelNameString, plotTimeRange);
-    %figBasePath = [outputDirectory '/' figName];
-    %wprintfig(figureHandle,figBasePath);
-    
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                 plot high pass filtered time series                      %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % plot high pass filtered time series
-    %wlog(debugLevel, 2, '    plotting high pass filtered time series...\n');
-    %wtimeseries(highPassedData, tiling, startTime, centerTime, ...
-    %            plotTimeRange * [-1 +1] / 2, channelNameString);
-
-    % print high pass filtered time series to file
-    %wlog(debugLevel, 2, '    printing high passed time series...\n');
-    %figName = sprintf('%s_%s_%.2f_timeseries_highpassed', ...
-    %                  uniqueID, channelNameString, plotTimeRange);
-    %figBasePath = [outputDirectory '/' figName];
-    %wprintfig(figureHandle,figBasePath);
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                      plot whitened time series                           %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % plot whitened time series
-    %wlog(debugLevel, 2, '    plotting whitened time series...\n');
-    %wtimeseries(whitenedData, tiling, startTime, centerTime, ...
-    %            plotTimeRange * [-1 +1] / 2, channelNameString);
-
-    % print whitened time series to file
-    %wlog(debugLevel, 2, '    printing whitened time series...\n');
-    %figName = sprintf('%s_%s_%.2f_timeseries_whitened', ...
-    %                  uniqueID, channelNameString, plotTimeRange);
-    %figBasePath = [outputDirectory '/' figName];
-    %wprintfig(figureHandle,figBasePath);
-    
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                         plot raw spectrogram                             %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % plot raw spectrogram
-    %wlog(debugLevel, 2, '    plotting raw spectrogram...\n');
-    %clf;
-    %wspectrogram(rawTransform, tiling, outputDirectory,uniqueID,startTime, centerTime, ...
-    %             plotTimeRange * [-1 +1] / 2, plotFrequencyRange, ...
-    %             mostSignificantQ, plotNormalizedEnergyRange, ...
-    %             plotHorizontalResolution);
-
-    % print autoscaled spectrogram to file
-    %wlog(debugLevel, 2, '    printing raw spectrogram...\n');
-    %figName = sprintf('%s_%s_%.2f_spectrogram_raw', ...
-    %                  uniqueID, channelNameString, plotTimeRange);
-    %figBasePath = [outputDirectory '/' figName];
-    %wprintfig(figureHandle,figBasePath);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %                      plot whitened spectrogram                           %
@@ -1138,85 +1003,8 @@ for channelNumber = 1 : numberOfChannels,
     figName = sprintf('%s_%s_%.2f_spectrogram_whitened', ...
                       uniqueID, channelNameString, plotTimeRange);
     figBasePath = [outputDirectory '/' figName];
-    wprintfig(figureHandle,figBasePath);
+    print(figureHandle,figBasePath,'-dpng');
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                     plot autoscaled spectrogram                          %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % plot autoscaled spectrogram
-    wlog(debugLevel, 2, '    plotting autoscaled spectrogram...\n');
-    clf;
-    autoNormalizedEnergyRange = [];
-    wspectrogram(whitenedTransform, tiling, outputDirectory,uniqueID,startTime, centerTime, ...
-                 plotTimeRange * [-1 +1] / 2, plotFrequencyRange, ...
-                 mostSignificantQ, autoNormalizedEnergyRange, ...
-                 plotHorizontalResolution);
-
-    % print autoscaled spectrogram to file
-    wlog(debugLevel, 2, '    printing autoscaled spectrogram...\n');
-    figName = sprintf('%s_%s_%.2f_spectrogram_autoscaled', ...
-                      uniqueID, channelNameString, plotTimeRange);
-    figBasePath = [outputDirectory '/' figName];
-    wprintfig(figureHandle,figBasePath);
-    toc;
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                          plot raw eventgram                              %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % plot raw eventgram
-    %wlog(debugLevel, 2, '    plotting raw eventgram...\n');
-    %clf;
-    %weventgram(rawSignificants, outputDirectory,uniqueID,tiling, startTime, centerTime, ...
-    %           plotTimeRange * [-1 +1] / 2, plotFrequencyRange, ...
-    %           plotDurationInflation, plotBandwidthInflation, ...
-    %           plotNormalizedEnergyRange);
-
-    % print autoscaled eventgram to file
-    %wlog(debugLevel, 2, '    printing raw eventgram...\n');
-    %figName = sprintf('%s_%s_%.2f_eventgram_raw', ...
-    %                  uniqueID, channelNameString, plotTimeRange);
-    %figBasePath = [outputDirectory '/' figName];
-    %wprintfig(figureHandle,figBasePath);
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                       plot whitened eventgram                            %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % plot whitened eventgram
-    wlog(debugLevel, 2, '    plotting whitened eventgram...\n');
-    clf;
-    weventgram(whitenedSignificants, outputDirectory,uniqueID,tiling, startTime, centerTime, ...
-               plotTimeRange * [-1 +1] / 2, plotFrequencyRange, ...
-               plotDurationInflation, plotBandwidthInflation, ...
-               plotNormalizedEnergyRange);
-
-    % print whitened eventgram to file
-    wlog(debugLevel, 2, '    printing whitened eventgram...\n');
-    figName = sprintf('%s_%s_%.2f_eventgram_whitened', ...
-                      uniqueID, channelNameString, plotTimeRange);
-    figBasePath = [outputDirectory '/' figName];
-    wprintfig(figureHandle,figBasePath);
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                      plot autoscaled eventgram                           %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % plot autoscaled eventgram
-    wlog(debugLevel, 2, '    plotting autoscaled eventgram...\n');
-    clf;
-    autoNormalizedEnergyRange = [];
-    weventgram(whitenedSignificants,outputDirectory,uniqueID, tiling, startTime, centerTime, ...
-               plotTimeRange * [-1 +1] / 2, plotFrequencyRange, ...
-               plotDurationInflation, plotBandwidthInflation, ...
-               autoNormalizedEnergyRange);
-
-    % print autoscaled eventgram to file
-    wlog(debugLevel, 2, '    printing autoscaled eventgram...\n');
-    figName = sprintf('%s_%s_%.2f_eventgram_autoscaled', ...
-                      uniqueID, channelNameString, plotTimeRange);
-    figBasePath = [outputDirectory '/' figName];
-    wprintfig(figureHandle,figBasePath);
     toc;
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %                      add images to html report                           %

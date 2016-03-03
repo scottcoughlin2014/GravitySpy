@@ -65,7 +65,7 @@ function transforms = wtransform(data, tiling, outlierFactor, ...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % verify correct number of input arguments
-error(nargchk(3, 7, nargin, 'struct'));
+narginchk(3, 7);
 
 % infer analysis type from missing arguments and
 % construct default arguments
@@ -291,7 +291,7 @@ switch lower(analysisMode)
             coefficients{channelNumber}(frequencyNumber);
       end
       % compute the singular value decomposition
-      [u, s, v] = svd(f);
+      [u, ~, ~] = svd(f);
 
       % repack the orthonormal basis coefficients into the output 
       % structure
