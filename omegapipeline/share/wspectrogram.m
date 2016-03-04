@@ -369,19 +369,6 @@ for channelNumber = 1 : numberOfChannels,
 
     % end loop over rows
     end
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                Interp Frequency to be same for all omega scans           %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    frequencies1 = linspace(min(frequencyRange), max(frequencyRange), horizontalResolution);
-    newNormalizedEnergy = zeros(horizontalResolution, horizontalResolution);
-    for i = 1:length(times);
-        columnNormalizedEnergies = normalizedEnergies(:,i);
-        columnNormalizedEnergies = interp1(frequencies,columnNormalizedEnergies, frequencies1,'linear');
-      newNormalizedEnergy(:, i) = columnNormalizedEnergies;
-        
-    end
-    frequencies=frequencies1;
-    normalizedEnergies = newNormalizedEnergy;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %                         set colormap scaling                             %
@@ -420,24 +407,30 @@ for channelNumber = 1 : numberOfChannels,
 
     % continue
     end
-
-    % reset figure
-    clf;
-    set(gca, 'FontSize', 16);
-
-    % plot spectrogram
+    frequencies1 = linspace(min(frequencyRange), max(frequencyRange), horizontalResolution*8);
+    [X,Y] = meshgrid(times,frequencies1);
+    D=repmat(times,[length(frequencies),1]);
+    B= repmat(frequencies',[1,length(times)]);
+    normalizedEnergies = interp2(D,B,normalizedEnergies,X,Y);
+    clear D B X Y
+    
+    save([outputDirectory '/' uniqueID '_spectrogram_' num2str(abs(diff(timeRange))) '.mat'],...
+        'times','frequencies','normalizedEnergies')
+    
+    % plot imagesc no frequency interp
     if abs(diff(timeRange)) < millisecondThreshold,
-      surf(times * 1e3, frequencies, normalizedEnergies, normalizedEnergies);
+      surf(times * 1e3, frequencies, normalizedEnergies,normalizedEnergies);
     elseif abs(diff(timeRange)) < secondThreshold,
-      surf(times * 1, frequencies, normalizedEnergies, normalizedEnergies);
+      %surf(times * 1, frequencies, normalizedEnergies,normalizedEnergies);
+      surf(times * 1,frequencies1, normalizedEnergies);
     elseif abs(diff(timeRange)) < minuteThreshold,
-      surf(times / 60, frequencies, normalizedEnergies, normalizedEnergies);
+      surf(times / 60, frequencies, normalizedEnergies,normalizedEnergies);
     elseif abs(diff(timeRange)) < hourThreshold,
-      surf(times / 3600, frequencies, normalizedEnergies, normalizedEnergies);
+      surf(times / 3600, frequencies, normalizedEnergies,normalizedEnergies);
     elseif abs(diff(timeRange)) < dayThreshold,
-      surf(times / 86400, frequencies, normalizedEnergies, normalizedEnergies);
+      surf(times / 86400, frequencies, normalizedEnergies,normalizedEnergies);
     else
-      surf(times / 31557600, frequencies, normalizedEnergies, normalizedEnergies);
+      surf(times / 31557600, frequencies, normalizedEnergies,normalizedEnergies);
     end
 
     % apply colormap scaling
@@ -464,7 +457,7 @@ for channelNumber = 1 : numberOfChannels,
 
     % set axis position
     set(gca, 'Position', spectrogramPosition);
-    
+
 
     % set axis range
     if abs(diff(timeRange)) < millisecondThreshold,
@@ -529,22 +522,6 @@ for channelNumber = 1 : numberOfChannels,
       xlabel('Time [years]');
     end
 
-    % set title properties
-    %titleString = sprintf('%s at %.3f with Q of %.1f', ...
-    %                      channelNames{channelNumber}, referenceTime, ...
-    %                      tiling.planes{planeIndex}.q);
-    %titleString = strrep(titleString, '_', '\_');
-    %title(titleString);
-    keyboard
-    
-    frequencies1 = linspace(min(frequencyRange), max(frequencyRange), horizontalResolution);
-    [X,Y] = meshgrid(times,frequencies1);
-    hold on
-    plot(X,Y)
-
-    keyboard
-
-    save([outputDirectory '/' uniqueID '_spectrogram_' num2str(abs(diff(timeRange))) '.mat'],'xdata','ydata','zdata')
     % set figure background color
     set(gca, 'Color', [1 1 1]);
     set(gcf, 'Color', [1 1 1]);

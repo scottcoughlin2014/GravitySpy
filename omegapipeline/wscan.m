@@ -14,7 +14,7 @@ function wscan(eventTime, uniqueID, configurationFile, frameCacheFile, ...
 %   frameCacheFile        path name of frame file cache file
 %   outputDirectory       directory to write results
 %   generateReport        generate plots and html report
-%   uniqueID		  glitch ID tag
+%   uniqueID		      glitch ID tag
 %   debugLevel            verboseness of debug level output
 %
 % To allow use as a stand-alone executable, the specified eventTime should be
@@ -68,8 +68,6 @@ function wscan(eventTime, uniqueID, configurationFile, frameCacheFile, ...
 % The specified debugLevel controls the amount of detail in the output log.
 % A debugLevel of unity is assumed by default.
 %
-% See also WREADDATA, WRESAMPLE, WTILE, WCONDITION, WTRANSFORM, WTHRESHOLD,
-% WSELECT, WSPECTROGRAM, WEVENTGRAM, WTIMESERIES, WCONFIGURE.SH and WSCAN.SH.
 
 % Shourov K. Chatterji <shourov@ligo.mit.edu>
 
@@ -152,9 +150,6 @@ htmlFile = 'index.html';
 
 % name of text summary file
 textSummaryFile = 'summary.txt';
-
-% name of xml summary file
-xmlSummaryFile = 'summary.xml';
 
 % name of context file
 contextFile = 'context.html';
@@ -247,9 +242,9 @@ while ~feof(configurationFID),
 
     % remove leading and trailing blanks
     sectionIndex{sectionNumber} = ...
-        fliplr(deblank(fliplr(deblank(sectionIndex{sectionNumber}))));
+        strtrim(sectionIndex{sectionNumber});
     sectionName{sectionNumber} = ...
-        fliplr(deblank(fliplr(deblank(sectionName{sectionNumber}))));
+        strtrim(sectionName{sectionNumber});
 
     % standardize section names
     sectionIndex{sectionNumber} = strrep(sectionIndex{sectionNumber}, ';', ':');
@@ -584,9 +579,7 @@ for sectionNumber = 1 : numberOfSections,
           '<li><a href="javascript:gotoSection(''%s'')">%s</a></li>\n', ...
           sectionIndex{sectionNumber}, sectionIndex{sectionNumber});
 end
-fprintf(htmlFID, '<li><a href="log.txt">Scan Log</a></li>\n');
 fprintf(htmlFID, '<li><a href="%s">Text Summary</a></li>\n', textSummaryFile);
-fprintf(htmlFID, '<li><a href="%s">XML Summary</a></li>\n', xmlSummaryFile);
 fprintf(htmlFID, '<li><a href="configuration.txt">Configuration</a></li>\n');
 fprintf(htmlFID, '</ul>\n');
 fprintf(htmlFID, '</div>\n');
