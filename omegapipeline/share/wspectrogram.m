@@ -407,6 +407,11 @@ for channelNumber = 1 : numberOfChannels,
 
     % continue
     end
+
+    % reset figure
+    clf;
+    set(gca, 'FontSize', 16);
+
     frequencies1 = linspace(10, 2048, 4096);
     [X,Y] = meshgrid(times,frequencies1);
     D=repmat(times,[length(frequencies),1]);
