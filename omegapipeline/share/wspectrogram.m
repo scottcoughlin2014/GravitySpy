@@ -410,7 +410,6 @@ for channelNumber = 1 : numberOfChannels,
 
     % reset figure
     clf;
-    set(gca, 'FontSize', 16);
 
     frequencies1 = linspace(10, 2048, 4096);
     [X,Y] = meshgrid(times,frequencies1);
@@ -437,7 +436,6 @@ for channelNumber = 1 : numberOfChannels,
     else
       surf(times / 31557600, frequencies, normalizedEnergies,normalizedEnergies);
     end
-
     % apply colormap scaling
     C = load('parulynomials.mat');
 
@@ -538,13 +536,12 @@ for channelNumber = 1 : numberOfChannels,
 
     % display colorbar
     subplot('position', colorbarPosition);
-    set(gca, 'FontSize', 16);
     colorbarmap = linspace(min(colormapScale), max(colormapScale), 100);
     imagesc(colorbarmap, 1, colorbarmap, colormapScale);
     set(gca, 'YTick',[])
     set(gca, 'TickDir', 'out')
     xlabel('Normalized tile energy');
-
+    set(findall(gcf,'-property','FontSize'),'FontSize',15) 
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   %                           end loop over q planes                           %
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
