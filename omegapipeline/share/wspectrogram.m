@@ -407,22 +407,22 @@ for channelNumber = 1 : numberOfChannels,
 
     % continue
     end
-    frequencies1 = linspace(min(frequencyRange), max(frequencyRange), horizontalResolution*8);
+    frequencies1 = linspace(10, 2048, 4096);
     [X,Y] = meshgrid(times,frequencies1);
     D=repmat(times,[length(frequencies),1]);
     B= repmat(frequencies',[1,length(times)]);
-    normalizedEnergies = interp2(D,B,normalizedEnergies,X,Y);
-    clear D B X Y
+    normalizedEnergies1 = interp2(D,B,normalizedEnergies,X,Y);
+    normalizedEnergies1(isnan(normalizedEnergies1)) = 0;
     
     save([outputDirectory '/' uniqueID '_spectrogram_' num2str(abs(diff(timeRange))) '.mat'],...
-        'times','frequencies','normalizedEnergies')
+        'times','frequencies1','normalizedEnergies1')
+        clear D B X Y normalizedEnergies1 frequencies1
     
-    % plot imagesc no frequency interp
+    % plot heat map
     if abs(diff(timeRange)) < millisecondThreshold,
       surf(times * 1e3, frequencies, normalizedEnergies,normalizedEnergies);
     elseif abs(diff(timeRange)) < secondThreshold,
-      %surf(times * 1, frequencies, normalizedEnergies,normalizedEnergies);
-      surf(times * 1,frequencies1, normalizedEnergies);
+      surf(times * 1, frequencies, normalizedEnergies,normalizedEnergies);
     elseif abs(diff(timeRange)) < minuteThreshold,
       surf(times / 60, frequencies, normalizedEnergies,normalizedEnergies);
     elseif abs(diff(timeRange)) < hourThreshold,
