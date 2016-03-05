@@ -996,7 +996,7 @@ for channelNumber = 1 : numberOfChannels,
     figName = sprintf('%s_%.2f.png', ...
                       uniqueID, plotTimeRange);
     figBasePath = [outputDirectory '/' figName];
-    print(figureHandle,figBasePath,'-dpng');
+    print(figureHandle,figBasePath,'-dpng','-r75');
 
     toc;
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
