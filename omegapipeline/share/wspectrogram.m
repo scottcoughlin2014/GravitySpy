@@ -1,4 +1,4 @@
-function handles = wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, referenceTime, ...
+function wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, referenceTime, ...
                                 timeRange, frequencyRange, qRange, ...
                                 normalizedEnergyRange, horizontalResolution)
 % WSPECTROGRAM Display time-frequency Q transform spectrograms
@@ -400,12 +400,13 @@ for iN = 1:length(timeRange);
         set(gca, 'YTick',[])
         set(gca, 'TickDir', 'out')
         xlabel('Normalized tile energy');
-        set(findall(gcf,'-property','FontSize'),'FontSize',15) 
+        set(findall(gcf,'-property','FontSize'),'FontSize',15)
+        N = getframe(gcf);
+        clf
         figName = sprintf('%s_%.2f.png', ...
                   uniqueID, abs(diff(timeRange1{iN})));
         figBasePath = [outputDirectory '/' figName];
-        print(gcf,figBasePath,'-dpng','-r75');
-        clf;
+        savepng(N.cdata,figBasePath);
 end
 
 
@@ -419,10 +420,11 @@ D=repmat(times{iN},[length(frequencies),1]);
 B= repmat(frequencies',[1,length(times{iN})]);
 normalizedEnergies1 = interp2(D,B,normalizedEnergies{iN},X,Y);
 normalizedEnergies1(isnan(normalizedEnergies1)) = 0;
+times1 = times{iN};
 
-save([outputDirectory '/' uniqueID '_spectrogram_' num2str(abs(diff(timeRange1{iN}))) '.mat'],...
-    'times','frequencies1','normalizedEnergies1')
-    clear D B X Y normalizedEnergies1 frequencies1
+save([outputDirectory '/' uniqueID '_spectrogram_' num2str(abs(diff(timeRange1{iN}))) '.mat'],'-v6',...
+    'times1','frequencies1','normalizedEnergies1')
+    clear D B X Y normalizedEnergies1 frequencies1 times1;
 end
 
 

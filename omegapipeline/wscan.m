@@ -99,12 +99,10 @@ timeRange = 64;
 frequencyRange = [10 Inf];
 qRange = [4 96];
 maximumEnergyLoss = 0.2;
-whiteNoiseFalseRate = 1;
 searchWindowDuration = 0.5;
 plotTimeRanges = [0.5 1 2 4];
 plotFrequencyRange = [10 Inf];
 plotNormalizedEnergyRange = [0 25.5];
-alwaysPlotFlag = 0;
 % convert string event time and debug level to numbers
 debugLevel = str2num(debugLevel);
 eventTime = str2num(eventTime);
@@ -166,13 +164,6 @@ wlog(debugLevel, 1, 'opening text summary...\n');
 
 % open text summary file
 textSummaryFID = fopen([outputDirectory '/' textSummaryFile], 'w');
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                           initialize figure handle                           %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-figureHandle = figure;
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %               identify statistically significant channels                  %
