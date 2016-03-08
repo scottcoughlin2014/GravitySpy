@@ -157,7 +157,6 @@ for channelNumber = 1 : numberOfChannels,
 end
 
 % force ranges to be monotonically increasing column vectors
-timeRange = unique(timeRange(:));
 frequencyRange = unique(frequencyRange(:));
 qRange = unique(qRange(:));
 if ~isempty(normalizedEnergyRange),
@@ -190,9 +189,6 @@ for channelNumber = 1 : numberOfChannels,
 end
 
 % Check for two component range vectors
-if length(timeRange) ~= 2,
-  error('Time range must be two component vector [tmin tmax].');
-end
 if length(frequencyRange) ~= 2,
   error('Frequency range must be two component vector [fmin fmax].');
 end
@@ -204,24 +200,11 @@ if ~isempty(normalizedEnergyRange) && length(normalizedEnergyRange) ~= 2,
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                         identify q planes to display                         %
+%                         identify q plane to display                         %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% find plane with Q nearest the requested value
+[~, planeIndices] = min(abs(log(tiling.qs / qRange)));
 
-% if non-zero Q range is requested,
-if length(qRange) == 2,
-
-  % find planes within requested Q range
-  planeIndices = find((tiling.qs >= min(qRange)) & ...
-                      (tiling.qs <= max(qRange)));
-
-% otherwise, if only a single Q is requested,
-else
-
-  % find plane with Q nearest the requested value
-  [~, planeIndices] = min(abs(log(tiling.qs / qRange)));
-
-% continue
-end
 
 % number of planes to display
 numberOfPlanes = length(planeIndices);
@@ -249,312 +232,199 @@ if (timeRange(1) < startTime - referenceTime) || ...
   error('requested time range exceeds available data');
 end
 
-% vector of times to display
-times = linspace(min(timeRange), max(timeRange), horizontalResolution);
+% index of plane in tiling structure
+planeIndex = planeIndices(1);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                           begin loop over channels                           %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                   identify frequency rows to display                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% loop over channels
-for channelNumber = 1 : numberOfChannels,
+% default minimum frequency is minimum frequency of available data
+if requestedFrequencyRange(1) == -Inf,
+  frequencyRange(1) = tiling.planes{planeIndex}.minimumFrequency;
+else
+  frequencyRange(1) = requestedFrequencyRange(1);
+end
 
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  %                          begin loop over q planes                          %
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% default maximum frequency is maximum frequency of available data
+if requestedFrequencyRange(2) == +Inf,
+  frequencyRange(2) = tiling.planes{planeIndex}.maximumFrequency;
+else
+  frequencyRange(2) = requestedFrequencyRange(2);
+end
 
-  % loop over planes to display
-  for plane = 1 : numberOfPlanes,
+% validate selected frequency range
+if (frequencyRange(1) < tiling.planes{planeIndex}.minimumFrequency) || ...
+   (frequencyRange(2) > tiling.planes{planeIndex}.maximumFrequency),
+  error('requested frequency range exceeds available data');
+end
 
-    % index of plane in tiling structure
-    planeIndex = planeIndices(plane);
+% vector of frequencies in plane
+frequencies = tiling.planes{planeIndex}.frequencies;
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                   identify frequency rows to display                     %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% find rows within requested frequency range
+rowIndices = find((frequencies >= min(frequencyRange)) & ...
+                  (frequencies <= max(frequencyRange)));
 
-    % default minimum frequency is minimum frequency of available data
-    if requestedFrequencyRange(1) == -Inf,
-      frequencyRange(1) = tiling.planes{planeIndex}.minimumFrequency;
-    else
-      frequencyRange(1) = requestedFrequencyRange(1);
-    end
+% pad by one row if possible
+if rowIndices(1) > 1,
+  rowIndices = [rowIndices(1) - 1 rowIndices];
+end
+if rowIndices(end) < length(frequencies),
+  rowIndices = [rowIndices rowIndices(end) + 1];
+end
 
-    % default maximum frequency is maximum frequency of available data
-    if requestedFrequencyRange(2) == +Inf,
-      frequencyRange(2) = tiling.planes{planeIndex}.maximumFrequency;
-    else
-      frequencyRange(2) = requestedFrequencyRange(2);
-    end
+% vector of frequencies to display
+frequencies = frequencies(rowIndices);
 
-    % validate selected frequency range
-    if (frequencyRange(1) < tiling.planes{planeIndex}.minimumFrequency) || ...
-       (frequencyRange(2) > tiling.planes{planeIndex}.maximumFrequency),
-      error('requested frequency range exceeds available data');
-    end
+% number of rows to display
+numberOfRows = length(rowIndices);
 
-    % vector of frequencies in plane
-    frequencies = tiling.planes{planeIndex}.frequencies;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                       initialize display matrix                          %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % find rows within requested frequency range
-    rowIndices = find((frequencies >= min(frequencyRange)) & ...
-                      (frequencies <= max(frequencyRange)));
+% initialize matrix of normalized energies for display
+for iN = 1:length(timeRange);
+normalizedEnergies{iN} = zeros(numberOfRows, horizontalResolution);
+end
 
-    % pad by one row if possible
-    if rowIndices(1) > 1,
-      rowIndices = [rowIndices(1) - 1 rowIndices];
-    end
-    if rowIndices(end) < length(frequencies),
-      rowIndices = [rowIndices rowIndices(end) + 1];
-    end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                     begin loop over frequency rows                       %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % vector of frequencies to display
-    frequencies = frequencies(rowIndices);
+% loop over rows
+for row = 1 : numberOfRows,
 
-    % number of rows to display
-    numberOfRows = length(rowIndices);
+  % index of row in tiling structure
+  rowIndex = rowIndices(row);
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                       initialize display matrix                          %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  % vector of times in plane
+  rowTimes = ...
+      (0 :  tiling.planes{planeIndex}.rows{rowIndex}.numberOfTiles - 1) ... 
+  * tiling.planes{planeIndex}.rows{rowIndex}.timeStep + ...
+             (startTime - referenceTime);
 
-    % initialize matrix of normalized energies for display
-    normalizedEnergies = zeros(numberOfRows, horizontalResolution);
+  % find tiles within requested time range
+  for iN = 1:length(timeRange);
+    % vector of times to display
+    timeRange1{iN} = timeRange(iN) * [-1 +1]*0.5;
+    times{iN} = linspace(min(timeRange1{iN}), max(timeRange1{iN}), horizontalResolution);
+    padTime = 1.5 * tiling.planes{planeIndex}.rows{rowIndex}.timeStep;
+    tileIndices = find((rowTimes >= min(timeRange1{iN}) - padTime) & ...
+                     (rowTimes <= max(timeRange1{iN}) + padTime));
 
-    % initialize maximum normalized energy
-    maximumNormalizedEnergy = 0;
+    % vector of times to display
+    rowTimestemp = rowTimes(tileIndices);
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                     begin loop over frequency rows                       %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % corresponding tile normalized energies
+    rowNormalizedEnergies = transforms{channelNumber}.planes{planeIndex} ...
+                            .rows{rowIndex}.normalizedEnergies(tileIndices);
 
-    % loop over rows
-    for row = 1 : numberOfRows,
+    % interpolate to desired horizontal resolution
+    rowNormalizedEnergies = interp1(rowTimestemp, rowNormalizedEnergies, times{iN}, ...
+                                  'pchip');
 
-      % index of row in tiling structure
-      rowIndex = rowIndices(row);
-
-      % vector of times in plane
-      rowTimes = ...
-          (0 :  tiling.planes{planeIndex}.rows{rowIndex}.numberOfTiles - 1) ... 
-	  * tiling.planes{planeIndex}.rows{rowIndex}.timeStep + ...
-                 (startTime - referenceTime);
-
-      % find tiles within requested time range
-      padTime = 1.5 * tiling.planes{planeIndex}.rows{rowIndex}.timeStep;
-      tileIndices = find((rowTimes >= min(timeRange) - padTime) & ...
-                         (rowTimes <= max(timeRange) + padTime));
-
-      % vector of times to display
-      rowTimes = rowTimes(tileIndices);
-
-      % corresponding tile normalized energies
-      rowNormalizedEnergies = transforms{channelNumber}.planes{planeIndex} ...
-                                .rows{rowIndex}.normalizedEnergies(tileIndices);
-
-      % update maximum normalized energy
-      maximumNormalizedEnergy = max(max(rowNormalizedEnergies), ...
-                                    maximumNormalizedEnergy);
-      
-      % interpolate to desired horizontal resolution
-      rowNormalizedEnergies = interp1(rowTimes, rowNormalizedEnergies, times, ...
-                                      'pchip');
-
-      % insert into display matrix
-      normalizedEnergies(row, :) = rowNormalizedEnergies;
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                      end loop over frequency rows                        %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % end loop over rows
-    end
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                         set colormap scaling                             %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % if normalized energy range is not specified
-    if isempty(normalizedEnergyRange),
-
-      % normalized energy range to code on colormap
-      colormapScale = [0 maximumNormalizedEnergy];
-
-    % or if autoscaling of upper limit is requested,
-    elseif normalizedEnergyRange(2) == Inf,
-
-      % normalized energy range to code on colormap
-      colormapScale = [normalizedEnergyRange(1) maximumNormalizedEnergy];
-
-    % otherwise,
-    else
-
-      % use specified range
-      colormapScale = normalizedEnergyRange(:).';
-
-    % continue
-    end
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %                            plot spectrogram                              %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % if plotting more than one figure
-    if numberOfChannels * numberOfPlanes > 1,
-
-      % select figure to plot in
-      figure((channelNumber - 1) * numberOfPlanes + plane);
-
-    % continue
-    end
-
-    % reset figure
-    clf;
-
-    frequencies1 = linspace(10, 2048, 4096);
-    [X,Y] = meshgrid(times,frequencies1);
-    D=repmat(times,[length(frequencies),1]);
-    B= repmat(frequencies',[1,length(times)]);
-    normalizedEnergies1 = interp2(D,B,normalizedEnergies,X,Y);
-    normalizedEnergies1(isnan(normalizedEnergies1)) = 0;
-    
-    save([outputDirectory '/' uniqueID '_spectrogram_' num2str(abs(diff(timeRange))) '.mat'],...
-        'times','frequencies1','normalizedEnergies1')
-        clear D B X Y normalizedEnergies1 frequencies1
-    
-    % plot heat map
-    if abs(diff(timeRange)) < millisecondThreshold,
-      surf(times * 1e3, frequencies, normalizedEnergies,normalizedEnergies);
-    elseif abs(diff(timeRange)) < secondThreshold,
-      surf(times * 1, frequencies, normalizedEnergies,normalizedEnergies);
-    elseif abs(diff(timeRange)) < minuteThreshold,
-      surf(times / 60, frequencies, normalizedEnergies,normalizedEnergies);
-    elseif abs(diff(timeRange)) < hourThreshold,
-      surf(times / 3600, frequencies, normalizedEnergies,normalizedEnergies);
-    elseif abs(diff(timeRange)) < dayThreshold,
-      surf(times / 86400, frequencies, normalizedEnergies,normalizedEnergies);
-    else
-      surf(times / 31557600, frequencies, normalizedEnergies,normalizedEnergies);
-    end
-    % apply colormap scaling
-    C = load('parulynomials.mat');
-
-    x = linspace(0,1,256)';
-
-    r = polyval(C.R,x);
-    g = polyval(C.G,x);
-    b = polyval(C.B,x);
-
-    % Clamp:
-    r(r<0)=0;
-    g(g<0)=0;
-    b(b<0)=0;
-    r(r>1)=1;
-    g(g>1)=1;
-    b(b>1)=1;
-
-    map = [r g b];
-
-    colormap(map);
-    caxis(colormapScale);
-
-    % set axis position
-    set(gca, 'Position', spectrogramPosition);
-
-
-    % set axis range
-    if abs(diff(timeRange)) < millisecondThreshold,
-      axis([min(timeRange) * 1e3 max(timeRange) * 1e3 ...
-            min(frequencyRange) max(frequencyRange)]);
-    elseif abs(diff(timeRange)) < secondThreshold,
-      axis([min(timeRange) * 1 max(timeRange) * 1 ...
-            min(frequencyRange) max(frequencyRange)]);
-    elseif abs(diff(timeRange)) < minuteThreshold,
-      axis([min(timeRange) / 60 max(timeRange) / 60 ...
-            min(frequencyRange) max(frequencyRange)]);
-    elseif abs(diff(timeRange)) < hourThreshold,
-      axis([min(timeRange) / 3600 max(timeRange) / 3600 ...
-            min(frequencyRange) max(frequencyRange)]);
-    elseif abs(diff(timeRange)) < dayThreshold,
-      axis([min(timeRange) / 86400 max(timeRange) / 86400 ...
-            min(frequencyRange) max(frequencyRange)]);
-    else
-      axis([min(timeRange) / 31557600 max(timeRange) / 31557600 ...
-            min(frequencyRange) max(frequencyRange)]);
-    end
-
-    % set view angle
-    view([0 0 1]);
-
-    % disable coordinate grid
-    grid off;
-
-    % enable interpolated shading
-    shading interp;
-
-    % set y axis properties
-    ylabel('Frequency [Hz]');
-    set(gca, 'YScale', 'log');
-    set(gca, 'TickDir', 'out');
-    set(gca, 'TickLength', [0.01 0.025]);
-    if min(frequencyRange) >= 0.0625,
-      set(gca, 'YMinorTick', 'off');
-      set(gca, 'YTick', 2.^(ceil(log2(min(frequencyRange))) : 1 : ...
-                            floor(log2(max(frequencyRange)))));
-    end
-
-    % % set vertical height based on frequency range
-    % frequencyOctaves = log2(max(frequencies) / min(frequencies));
-    % frequencyOctaves = max(frequencyOctaves, 6);
-    % frequencyOctaves = min(frequencyOctaves, 10.5);
-    % set(gcf, 'PaperPosition', [0.25 0.25 8.0 frequencyOctaves]);
-    % % the axis position property should also be adjusted
-
-    % set x axis properties
-    if abs(diff(timeRange)) < millisecondThreshold,
-      xlabel('Time [milliseconds]');
-    elseif abs(diff(timeRange)) < secondThreshold,
-      xlabel('Time [seconds]');
-    elseif abs(diff(timeRange)) < minuteThreshold,
-      xlabel('Time [minutes]');
-    elseif abs(diff(timeRange)) < hourThreshold,
-      xlabel('Time [hours]');
-    elseif abs(diff(timeRange)) < dayThreshold,
-      xlabel('Time [days]');
-    else
-      xlabel('Time [years]');
-    end
-
-    % set figure background color
-    set(gca, 'Color', [1 1 1]);
-    set(gcf, 'Color', [1 1 1]);
-    set(gcf, 'InvertHardCopy', 'off');
-    
-
-    % append current axis handle to list of handles
-    handles(channelNumber, plane) = gca;
-
-    % display colorbar
-    subplot('position', colorbarPosition);
-    colorbarmap = linspace(min(colormapScale), max(colormapScale), 100);
-    imagesc(colorbarmap, 1, colorbarmap, colormapScale);
-    set(gca, 'YTick',[])
-    set(gca, 'TickDir', 'out')
-    xlabel('Normalized tile energy');
-    set(findall(gcf,'-property','FontSize'),'FontSize',15) 
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  %                           end loop over q planes                           %
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-  % end loop over planes
+    % insert into display matrix
+    normalizedEnergies{iN}(row, :) = rowNormalizedEnergies;
   end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                            end loop over channels                            %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                      end loop over frequency rows                        %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% end loop over channels
+% end loop over rows
 end
+    
+for iN = 1:length(timeRange);
+
+        surf(times{iN}, frequencies, normalizedEnergies{iN},normalizedEnergies{iN});
+        colormapScale = normalizedEnergyRange(:).';
+
+        % apply colormap scaling
+        C = load('parulynomials.mat');
+
+        x = linspace(0,1,256)';
+
+        r = polyval(C.R,x);
+        g = polyval(C.G,x);
+        b = polyval(C.B,x);
+
+        % Clamp:
+        r(r<0)=0;
+        g(g<0)=0;
+        b(b<0)=0;
+        r(r>1)=1;
+        g(g>1)=1;
+        b(b>1)=1;
+
+        map = [r g b];
+
+        colormap(map);
+        caxis(colormapScale);
+
+        % set axis position
+        set(gca, 'Position', spectrogramPosition);
+        axis([min(timeRange1{iN}) max(timeRange1{iN}) ...
+              min(frequencyRange) max(frequencyRange)]);
+          
+        % set view angle
+        view([0 0 1]);
+
+        % disable coordinate grid
+        grid off;
+
+        % enable interpolated shading
+        shading interp;
+       
+        % set y axis properties
+        ylabel('Frequency [Hz]');
+        set(gca, 'YScale', 'log');
+        set(gca, 'TickDir', 'out');
+        set(gca, 'TickLength', [0.01 0.025]);
+        if min(frequencyRange) >= 0.0625,
+        set(gca, 'YMinorTick', 'off');
+        set(gca, 'YTick', 2.^(ceil(log2(min(frequencyRange))) : 1 : ...
+                            floor(log2(max(frequencyRange)))));
+        end
+        xlabel('Time [seconds]');
+        % set figure background color
+        set(gca, 'Color', [1 1 1]);
+        set(gcf, 'Color', [1 1 1]);
+        set(gcf, 'InvertHardCopy', 'off');
+
+        % display colorbar
+        subplot('position', colorbarPosition);
+        colorbarmap = linspace(min(colormapScale), max(colormapScale), 100);
+        imagesc(colorbarmap, 1, colorbarmap, colormapScale);
+        set(gca, 'YTick',[])
+        set(gca, 'TickDir', 'out')
+        xlabel('Normalized tile energy');
+        set(findall(gcf,'-property','FontSize'),'FontSize',15) 
+        figName = sprintf('%s_%.2f.png', ...
+                  uniqueID, abs(diff(timeRange1{iN})));
+        figBasePath = [outputDirectory '/' figName];
+        print(gcf,figBasePath,'-dpng','-r75');
+        clf;
+end
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                            plot spectrogram                              %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for iN = 1:length(timeRange);
+frequencies1 = linspace(10, 2048, 4096);
+[X,Y] = meshgrid(times{iN},frequencies1);
+D=repmat(times{iN},[length(frequencies),1]);
+B= repmat(frequencies',[1,length(times{iN})]);
+normalizedEnergies1 = interp2(D,B,normalizedEnergies{iN},X,Y);
+normalizedEnergies1(isnan(normalizedEnergies1)) = 0;
+
+save([outputDirectory '/' uniqueID '_spectrogram_' num2str(abs(diff(timeRange1{iN}))) '.mat'],...
+    'times','frequencies1','normalizedEnergies1')
+    clear D B X Y normalizedEnergies1 frequencies1
+end
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                          return to calling function                          %
