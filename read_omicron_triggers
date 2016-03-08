@@ -116,39 +116,13 @@ def make_images(centraltime,iT=0):
     # Open file for writing metadata for images
     metadata =  open(imagepathname + '/imagemetadata.txt', "a+")
 
-    system_call = "dmt_wplot \
-	frameCacheFile='./cache/{0}.cache' \
-        frameType={1}_HOFT_C00 \
-        ndsServer={2} \
-        channelName={3} \
-        eventTime={4} \
-        outputDirectory={5} \
-        plotType=spectrogram_whitened \
-        plotTimeRanges='{6}' \
-        sampleFrequency={7} \
-        colorMap={8} \
-        plotFrequencyRange='[10 inf]' \
-        plotNormalizedEnergyRange='[0.0 {9}]'  \
-        searchTimeRange=64 \
-        searchFrequencyRange='[0 inf]' \
-        searchQRange='[4.0 64.0]'\n".format(detGPSstr,opts.detector,opts.nds2name,detchannelname,centraltime,tempdir,opts.boxtime,opts.sampfrequency,opts.colorMap,opts.normalizedSNR)
+    system_call = "wscan {0} {1} {2} {3}_HOFT_C00 ./cache/{4}.cache {5} 2".format(centraltime,uniqueid,detchannelname,opts.detector,detGPSstr,imagepathname)
 
     if opts.verbose == True:
 	print(system_call)
 
     os.system(system_call)
 
-    os.chdir('{0}'.format(tempdir))
-
-    pngnames = os.listdir('./')
-    if opts.verbose == True:
-	print(pngnames)
-
-    # If image is not created server must be down. Exit fucntion
-    if len(pngnames) ==1:
-	print "OH NO! Script failed starting at GPS time {0}".format(centraltime)
-	# write file to indicate at what GPStime the image generation failed.
-	sys.exit()
 
     # Start row for image metdata that assists in the uploading of the images to the project builder.
     metadata.write('{0} 20151016 '.format(uniqueid))
@@ -157,33 +131,16 @@ def make_images(centraltime,iT=0):
 
     for iTime in xrange(0,len(opts.boxtime)):
 
-        system_call = 'convert *{0}_{1}* -chop 0x35 {2}/{3}/{4}_{5}_{6}.png'.format(detchannelname,opts.boxtime[iTime],opts.outpath,detGPSstr,opts.detector,uniqueid,opts.boxtime[iTime])
-        os.system(system_call)
-
 	if iTime == (len(opts.boxtime)-1):
 	    # Last entry cannot contain a space otherwise conversion from txt 
 	    # to csv file would not work.
-	    metadata.write('{0}_{1}_{2}.png'.format(opts.detector,uniqueid,opts.boxtime[iTime]))
+	    metadata.write('{0}_{1}.png'.format(uniqueid,opts.boxtime[iTime]))
 	else:
 	    # Add image string to image metadata csv file.
-	    metadata.write('{0}_{1}_{2}.png '.format(opts.detector,uniqueid,opts.boxtime[iTime]))
+	    metadata.write('{0}_{1}.png '.format(uniqueid,opts.boxtime[iTime]))
 
     metadata.write('\n')
     metadata.close()
-
-    # Back out of temp directory and delete it
-    os.chdir('..')
-    system_call = 'rm -rf {0}/'.format(tempdir)
-    os.system(system_call)
-
-    # Copy converted image to public_html and back out of png directory and delete duplicate .png inside of folder.
-
-    system_call = 'cp {0}/{1}/{2}_{3}*.png {4}'.format(opts.outpath,detGPSstr,opts.detector,uniqueid,imagepathname)
-    os.system(system_call)
-
-    os.chdir('../..')
-    system_call = 'rm -rf {0}/{1}/*'.format(opts.outpath,detGPSstr)
-    os.system(system_call)
 
     return uniqueid
 
