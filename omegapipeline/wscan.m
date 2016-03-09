@@ -118,8 +118,6 @@ outlierFactor = 2.0;
 % display parameters
 plotHorizontalResolution = 512;
 
-% name of text summary file
-textSummaryFile = 'summary.txt';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                            load frame cache file                             %
@@ -154,16 +152,6 @@ wlog(debugLevel, 1, '  outputDirectory:         %s\n', outputDirectory);
 
 % create spectrogram directory
 unix(['mkdir -p ' outputDirectory]);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                        initialize text summary report                        %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% report status
-wlog(debugLevel, 1, 'opening text summary...\n');
-
-% open text summary file
-textSummaryFID = fopen([outputDirectory '/' textSummaryFile], 'w');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %               identify statistically significant channels                  %
@@ -242,23 +230,8 @@ wspectrogram(whitenedTransform, tiling, outputDirectory,uniqueID,startTime, cent
 toc;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                          close text summary report                           %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% report status
-wlog(debugLevel, 1, 'closing text summary...\n');
-
-% close text summary file
-fclose(textSummaryFID);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                                     exit                                     %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% report completion
-wlog(debugLevel, 1, 'finished on %s at %s\n', ...
-     datestr(clock, 29), datestr(clock, 13));
-
 % close all figures
 close all;
 
