@@ -94,14 +94,14 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 tic;
 % default configuration parameters
-sampleFrequency = 4096;
+sampleFrequency = 16384;
 timeRange = 64;
-frequencyRange = [10 Inf];
+frequencyRange = [10 2048];
 qRange = [4 96];
 maximumEnergyLoss = 0.2;
 searchWindowDuration = 0.5;
 plotTimeRanges = [0.5 1 2 4];
-plotFrequencyRange = [10 Inf];
+plotFrequencyRange = [10 2048];
 plotNormalizedEnergyRange = [0 25.5];
 % convert string event time and debug level to numbers
 debugLevel = str2num(debugLevel);

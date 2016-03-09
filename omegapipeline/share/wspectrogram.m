@@ -338,7 +338,7 @@ end
     
 for iN = 1:length(timeRange);
 
-        surf(times{iN}, frequencies, normalizedEnergies{iN},normalizedEnergies{iN});
+        surf(times{iN}, frequencies, normalizedEnergies{iN});
         colormapScale = normalizedEnergyRange(:).';
 
         % apply colormap scaling
@@ -359,7 +359,6 @@ for iN = 1:length(timeRange);
         b(b>1)=1;
 
         map = [r g b];
-
         colormap(map);
         caxis(colormapScale);
 
@@ -400,7 +399,7 @@ for iN = 1:length(timeRange);
         set(gca, 'YTick',[])
         set(gca, 'TickDir', 'out')
         xlabel('Normalized tile energy');
-        set(findall(gcf,'-property','FontSize'),'FontSize',15)
+        set(findall(gcf,'-property','FontSize'),'FontSize',10)
         N = getframe(gcf);
         clf
         figName = sprintf('%s_%.2f.png', ...
@@ -414,16 +413,16 @@ end
 %                            plot spectrogram                              %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for iN = 1:length(timeRange);
-frequencies1 = linspace(10, 2048, 4096);
-[X,Y] = meshgrid(times{iN},frequencies1);
-D=repmat(times{iN},[length(frequencies),1]);
-B= repmat(frequencies',[1,length(times{iN})]);
-normalizedEnergies1 = interp2(D,B,normalizedEnergies{iN},X,Y);
-normalizedEnergies1(isnan(normalizedEnergies1)) = 0;
-times1 = times{iN};
+    frequencies1 = linspace(10, 2048, 4096);
+    [X,Y] = meshgrid(times{iN},frequencies1);
+    D=repmat(times{iN},[length(frequencies),1]);
+    B= repmat(frequencies',[1,length(times{iN})]);
+    normalizedEnergies1 = interp2(D,B,normalizedEnergies{iN},X,Y);
+    normalizedEnergies1(isnan(normalizedEnergies1)) = 0;
+    times1 = times{iN};
 
-save([outputDirectory '/' uniqueID '_spectrogram_' num2str(abs(diff(timeRange1{iN}))) '.mat'],'-v6',...
-    'times1','frequencies1','normalizedEnergies1')
+    save([outputDirectory '/' uniqueID '_spectrogram_' num2str(abs(diff(timeRange1{iN}))) '.mat'],'-v6',...
+        'times1','frequencies1','normalizedEnergies1')
     clear D B X Y normalizedEnergies1 frequencies1 times1;
 end
 
