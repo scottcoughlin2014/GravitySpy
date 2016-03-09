@@ -108,6 +108,9 @@ def make_images(centraltime,iT=0):
     	uniqueid = tempname[0].split('.')[1]
     	print('unique id is {0}'.format(uniqueid))
 
+    system_call = 'rm -rf {0}'.format(tempdir)
+    os.system(system_call)
+
     # Use random folder name as I.D. Tag but first check if this gps time 
     # already has a I.D. tag and use that if it does.
     idfile =  open('./ID/ID_' + detGPSstr + '.txt', "a+")
