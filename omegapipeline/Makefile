@@ -1,7 +1,7 @@
 MATLAB_ROOT := /ldcg/matlab_r2015b
 MATLAB_MCR := /ldcg/matlab_r2015b
 MATLAB_ARCH := glnxa64
-MCCFLAGS := -m -v -R -nodisplay -N -p signal -p stats
+MCCFLAGS := -m -v -R -nodisplay -R -singleCompThread -N -p signal -p stats
 MCC := $(MATLAB_ROOT)/bin/mcc $(MCCFLAGS)
 INSTDIR = /home/scoughlin/opt/omega/newomega/
 WSCAN.BIN = build/wscan_bin
