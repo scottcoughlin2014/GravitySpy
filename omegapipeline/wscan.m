@@ -97,7 +97,7 @@ tic;
 sampleFrequency = 16384;
 timeRange = 64;
 frequencyRange = [10 2048];
-qRange = [4 96];
+qRange = [4 64];
 maximumEnergyLoss = 0.2;
 searchWindowDuration = 0.5;
 plotTimeRanges = [0.5 1 2 4];
