@@ -210,6 +210,7 @@ whitenedProperties = ...
 % Select most siginficant Q
 mostSignificantQ = ...
       whitenedProperties{1}.peakQ;
+
 clear whitenedProperties whitenedData channelName eventTime frameCache frameCacheFile
 clear frameType highPassCutoff lowPassCutoff outlierFactor qRange rawData rawSampleFrequency
 clear searchWindow stopTime timeRange timeShifts transientFactor
