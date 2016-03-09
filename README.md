@@ -3,7 +3,7 @@ This repo contains code for the GravitySpy Citizen Science project.
 Testing commit to branch
 RUN source /home/detchar/opt/gwpysoft/etc/gwpy-user-env.sh
 RUN kinit albert.einstein@LIGO.ORG
-test
+
 1.) RUN ./read_omicron_triggers --gpsStart 1127700000 --gpsEnd 1127701500 --detector H1 or L1
 (Pick the same detector as the cluster you are on)
 
