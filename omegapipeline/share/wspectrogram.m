@@ -342,24 +342,7 @@ for iN = 1:length(timeRange);
         colormapScale = normalizedEnergyRange(:).';
 
         % apply colormap scaling
-        C = load('parulynomials.mat');
-
-        x = linspace(0,1,256)';
-
-        r = polyval(C.R,x);
-        g = polyval(C.G,x);
-        b = polyval(C.B,x);
-
-        % Clamp:
-        r(r<0)=0;
-        g(g<0)=0;
-        b(b<0)=0;
-        r(r>1)=1;
-        g(g>1)=1;
-        b(b>1)=1;
-
-        map = [r g b];
-        colormap(map);
+        colormap('parula');
         caxis(colormapScale);
 
         % set axis position
