@@ -1,185 +1,20 @@
-#!/usr/bin/env python
+###############################################################################
+##########################                             ########################
+##########################      Func: wtile            ########################
+##########################                             ########################
+###############################################################################
 
-# ---- Import standard modules to the python path.
-from gwpy.table.lsctables import SnglBurstTable
-from gwpy.segments import DataQualityFlag
-import os,time, optparse, csv,sys,pickle,shlex,subprocess
-
-def wtile(timeRange, qRange, frequencyRange, sampleFrequency, \
-                        maximumMismatch, highPassCutoff, lowPassCutoff, \
+def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
+                        searchMaximumEnergyLoss, highPassCutoff, lowPassCutoff, \
                         whiteningDuration, transientFactor);
-# WTILE Tile space of time, frequency, and Q for discrete Q transform analysis
-#
-# WTILE covers the specified range of time, frequency, and Q with the minimum
-# number of measurement tiles such that the fractional energy loss encountered
-# by an arbitrary minimum uncertainty signal never exceeds the requested maximum
-# mismatch.  WTILE is typically called once for a particular set of search
-# parameters.  The resulting tiling structure is then used in subsequent calls
-# to WTRANSFORM on different data segments.
-#
-# usage: tiling = wtile(timeRange, qRange, frequencyRange, sampleFrequency, ...
-#                       maximumMismatch, highPassCutoff, lowPassCutoff, ...
-#                       whiteningDuration, transientFactor);
-#
-#  timeRange          duration of analysis
-#  qRange             range of Q to search
-#  frequencyRange     range of frequency to search
-#  sampleFrequency    sample frequency of input data
-#  maximumMismatch    fractional loss in squared signal energy due to mismatch
-#  highPassCutoff     cutoff frequency for high pass filter
-#  lowPassCutoff      cutoff frequency for low pass filter
-#  whiteningDuration  duration of whitening filter
-#  transientFactor    ratio of transient duration to whitening filter duration
-#
-#  tiling             output discrete Q transform tiling structure
-#
-# To define the targeted signal space, WTILE takes as arguments the duration,
-# frequency band, and Q range of the search.  The desired duration should be
-# specified as a single scalar number, while the desired frequency range and Q
-# range should both be two component vectors that specify the minimum and
-# maximum frequency and Q for the analysis.
-#
-# This signal space cannot be specified arbitrarily.  In order to avoid
-# frequency domain aliasing, WTILE enforces a minimum permissible Q of sqrt(11)
-# and a maximum permissible analysis frequency that depends on Q.  In order to
-# ensure a sufficient number of statistically independent tiles in each
-# frequency row, WTILE also enforces a minimum permissible analysis frequency
-# that depends on Q.  For convenience, the maximum permissible frequency range
-# may be obtained for each Q plane by specifying a frequency range of [].
-# Alternatively, the minimum permissible frequency may be obtained by specifying
-# a lower limit of 0 Hz and the maximum permissible frequency by specifiying an
-# upper limit of Inf Hz.
-#
-# WTILE also reports recommended filter parameters for data conditioning that
-# include cutoff frequencies for high pass and low pass filters and whitening
-# filter duration.  It also reports a recommended duration to ignore at both
-# beginning and end of the transform due to filter transients.  This transient
-# duration is simply the product of the whitening filter duration and a user
-# specified factor.  If no transient factor is specified, a default value of
-# four is used.  The user may also override the suggested data conditioning
-# filter parameters by providing alternative parameters as arguments to WTILE.
-#
-# The output Q transform tiling structure contains the following fields.
-#
-#   id                    identification string for structure
-#   duration              duration of data under analysis
-#   minimumQ              minimum Q of search
-#   maximumQ              maximum Q of search
-#   minimumFrequency      minimum frequency of search
-#   maximumFrequency      maximum frequency of search
-#   sampleFrequency       sample frequency of the data under analysis
-#   maximumMismatch       maximum fractional energy loss due to signal mismatch
-#   numberOfPlanes        number of Q planes in analysis
-#   qs                    vector of Qs
-#   planes                cell array of plane structures
-#   numberOfTiles         total number of tiles in analysis
-#   numberOfIndependents  total number of statistically independent tiles
-#   numberOfFlops         total number of flops in analysis
-#   highPassCutoff        cutoff frequency for high pass filter
-#   lowPassCutoff         cutoff frequency for low pass filter
-#   whiteningDuration     duration of whitening filter
-#   transientDuration     duration of filter transients to supress
-#
-# The planes field is a cell array of plane structures, one for each Q, which
-# contain the following fields.
-#
-#   q                     Q of plane
-#   minimumFrequency      Q dependent minimum frequency of search
-#   maximumFrequency      Q dependent maximum frequency of search
-#   normalization         Q dependent normalization factor
-#   frequencies           vector of frequencies
-#   numberOfRows          number of frequency rows in plane
-#   rows                  cell array of row structures
-#   numberOfTiles         number of tiles in plane
-#   numberOfIndependents  number of statistically independent tiles in plane
-#   numberOfFlops         number of flops to compute plane
-#
-# The rows field is a cell array of row structures, one for each frequency in
-# the plane, which contain the following fields.
-#
-#   frequency             frequency of row
-#   duration              tile duration for coincidence testing
-#   bandwidth             tile bandwidth for coincidence testing
-#   timeStep              tile time step for integration
-#   frequencyStep         tile frequency step for integration
-#   times                 vector of times
-#       THIS FIELD HAS BEEN REMOVED DUE TO EXCESSVE MEMORY USE
-#       WHERE REQUIRED, COMPUTE IT BY:
-#          times = (0 :  tiling.planes{plane}.rows{row}.numberOfTiles - 1) ...
-#            * tiling.planes{plane}.rows{row}.timeStep;
-#   window                window vector
-#   dataIndices           index into frequency domain data
-#   zeroPadLength         number of zeros to append to windowed data
-#   numberOfTiles         number tiles in frequency row
-#   numberOfIndependents  number of statistically independent tiles in row
-#   numberOfFlops         number of flops to compute frequency row
-#
-# See also WCONDITION, WTRANSFORM, WTHRESHOLD, WSELECT, WEXAMPLE, and WSEARCH.
-
-# Shourov K. Chatterji <shourov@ligo.mit.edu>
-
-# $Id: wtile.m 3421 2012-07-20 14:53:33Z michal.was@LIGO.ORG $
-
-################################################################################
-#                        process command line arguments                        #
-################################################################################
-
-# apply default arguments
-if isempty(highPassCutoff):
-  highPassCutoff = []
-
-if (nargin < 7) || isempty(lowPassCutoff),
-  lowPassCutoff = [];
-end
-if (nargin < 8) || isempty(whiteningDuration),
-  whiteningDuration = [];
-end
-if (nargin < 9) || isempty(transientFactor),
-  transientFactor = 4;
-end
-
-# default frequency range
-if isempty(frequencyRange),
-  frequencyRange = [0 Inf];
-end
-
-# force column vectors
-timeRange = timeRange(:);
-qRange = qRange(:);
-frequencyRange = frequencyRange(:);
-
-# check for scalar time range
-if length(timeRange) ~= 1,
-  error('invalid time range');
-end
-
-# promote scalar Q range to two element vector
-if length(qRange) == 1,
-  qRange = [qRange qRange];
-end
-
-# check for two element Q range
-if length(qRange) ~= 2,
-  error('invalid Q range');
-end
-
-# promote scalar frequency range to two element vector
-if length(frequencyRange) == 1,
-  frequencyRange = [frequencyRange frequencyRange];
-end
-
-# check for two element frequency range
-if length(frequencyRange) ~= 2,
-  error('invalid frequency range');
-end
 
 # extract minimum and maximum Q from Q range
-minimumQ = qRange(1);
-maximumQ = qRange(2);
+minimumQ = searchQRange[0];
+maximumQ = searchQRange[1];
 
 # extract minimum and maximum frequency from frequency range
-minimumFrequency = frequencyRange(1);
-maximumFrequency = frequencyRange(2);
+minimumFrequency = searchFrequencyRange[0];
+maximumFrequency = searchFrequencyRange[1];
 
 ################################################################################
 #                          compute derived parameters                          #
@@ -189,19 +24,19 @@ maximumFrequency = frequencyRange(2);
 nyquistFrequency = sampleFrequency / 2;
 
 # maximum mismatch between neighboring tiles
-mismatchStep = 2 * sqrt(maximumMismatch / 3);
+mismatchStep = 2 * np.sqrt(searchMaximumEnergyLoss / 3);
 
 # maximum possible time resolution
 minimumTimeStep = 1 / sampleFrequency;
 
 # maximum possible frequency resolution
-minimumFrequencyStep = 1 / timeRange;
+minimumFrequencyStep = 1 / blockTime;
 
 # conversion factor from Q prime to true Q
-qPrimeToQ = sqrt(11);
+qPrimeToQ = np.sqrt(11);
 
 # total number of samples in input data
-numberOfSamples = timeRange * sampleFrequency;
+numberOfSamples = blockTime * sampleFrequency;
 
 ################################################################################
 #                       determine parameter constraints                        #
@@ -224,95 +59,95 @@ maximumAllowableMismatch = 0.5;
 ################################################################################
 
 # check for valid time range
-if timeRange < 0,
-  error('negative time range');
-end
+if blockTime < 0:
+  print('negative time range')
+  sys.exit()
 
 # check for valid Q range
-if minimumQ > maximumQ,
-  error('minimum Q exceeds maximum Q');
-end
+if minimumQ > maximumQ:
+  print('minimum Q is larger than maximum Q')
+  sys.exit()
 
 # check for valid frequency range
-if minimumFrequency > maximumFrequency,
-  error('minimum frequency exceeds maximum frequency');
-end
+if minimumFrequency > maximumFrequency:
+  print('minimum frequency exceeds maximum frequency')
+  sys.exit()
 
 # check for valid minimum Q
-if minimumQ < minimumAllowableQ,
-  error('minimum Q less than #3.2f\n', minimumAllowableQ);
-end
+if minimumQ < minimumAllowableQ:
+  print('minimum Q less than {0}'.format(minimumAllowableQ))
+  sys.exit()
 
 # check for reasonable maximum mismatch parameter
-if  maximumMismatch > maximumAllowableMismatch,
-  error('maximum mismatch exceeds #.2f\n', maximumAllowableMismatch);
-end
+if searchMaximumEnergyLoss > maximumAllowableMismatch:
+  print('maximum mismatch exceeds {0}'.format(maximumAllowableMismatch))
+  sys.exit()
 
 # check for integer power of two data length
-if mod(log(timeRange * sampleFrequency) / log(2), 1) ~= 0,
-  error('data length is not an integer power of two');
-end
+if not np.mod(np.log(blockTime * sampleFrequency) / np.log(2), 1) == 0:
+  print('data length is not an integer power of two')
+  sys.exit()
 
 ################################################################################
 #                              determine Q planes                              #
 ################################################################################
 
 # cumulative mismatch across Q range
-qCumulativeMismatch = log(maximumQ / minimumQ) / sqrt(2);
+qCumulativeMismatch = np.log(maximumQ / minimumQ) / np.sqrt(2);
 
 # number of Q planes
-numberOfPlanes = ceil(qCumulativeMismatch / mismatchStep);
+numberOfPlanes = np.ceil(qCumulativeMismatch / mismatchStep);
 
 # insure at least one plane
-if numberOfPlanes == 0,
-  numberOfPlanes = 1;
-end
+if numberOfPlanes == 0:
+  numberOfPlanes = 1
 
 # mismatch between neighboring planes
 qMismatchStep = qCumulativeMismatch / numberOfPlanes;
 
 # index of Q planes
-qIndices = 0.5 : numberOfPlanes - 0.5;
+qIndices = np.linspace(0.5,numberOfPlanes - 0.5,numberOfPlanes)
 
 # vector of Qs
-qs = minimumQ * exp(sqrt(2) * qIndices * qMismatchStep);
+qs = minimumQ * np.exp(np.sqrt(2) * qIndices * qMismatchStep);
 
 ################################################################################
 #                             validate frequencies                             #
 ################################################################################
 
 # minimum allowable frequency to provide sufficient statistics
-minimumAllowableFrequency = minimumAllowableIndependents * max(qs) / ...
-                            (2 * pi * timeRange);
+minimumAllowableFrequency = minimumAllowableIndependents * max(qs) / \
+                            (2 * np.pi * blockTime);
 
 # maximum allowable frequency to avoid window aliasing
 maximumAllowableFrequency = nyquistFrequency / (1 + qPrimeToQ / min(qs));
 
 # check for valid minimum frequency
-if (minimumFrequency ~= 0) && ...
-   (minimumFrequency < minimumAllowableFrequency),
-  error(['requested minimum frequency of #.2f Hz ' ...
-        'less than minimum allowable frequency of #.2f Hz\n'], ...
-        minimumFrequency, minimumAllowableFrequency);
-end
+if (not minimumFrequency == 0) and \
+   (minimumFrequency < minimumAllowableFrequency):
+   print('requested minimum frequency of {0} Hz  \
+        less than minimum allowable frequency of {1} Hz').format(\
+        minimumFrequency, minimumAllowableFrequency)
+   sys.exit()
 
 # check for valid maximum frequency
-if (maximumFrequency ~= Inf) && ...
-   (maximumFrequency > maximumAllowableFrequency),
-  error(['requested maximum frequency of #.2f Hz ' ...
-         'greater than maximum allowable frequency #.2f Hz\n'], ...
-        maximumFrequency, maximumAllowableFrequency);
-end
+if (not np.isinf(maximumFrequency)) and \
+   (maximumFrequency > maximumAllowableFrequency):
+   print('requested maximum frequency of {0} Hz  \
+        less than maximum allowable frequency of {1} Hz').format(\
+        maximumFrequency, maximumAllowableFrequency)
+   sys.exit()
 
 ################################################################################
 #                     create Q transform tiling structure                      #
 ################################################################################
 
+tiling = np.array
 # structure type identifier
 tiling.id = 'Discrete Q-transform tile structure';
 
 # insert duration into tiling structure
-tiling.duration = timeRange;
+tiling.duration = blockTime;
 
 # insert minimum Q into tiling structure
 tiling.minimumQ = minimumQ;
@@ -330,7 +165,7 @@ tiling.maximumFrequency = maximumFrequency;
 tiling.sampleFrequency = sampleFrequency;
 
 # insert maximum loss due to mismatch into tiling structure
-tiling.maximumMismatch = maximumMismatch;
+tiling.searchMaximumEnergyLoss = searchMaximumEnergyLoss;
 
 # insert Q vector into tiling structure
 tiling.qs = qs;
@@ -503,7 +338,7 @@ for plane = 1 : numberOfPlanes,
     ############################################################################
 
     # cumulative mismatch across time range
-    timeCumulativeMismatch = timeRange * 2 * pi * frequency / q;
+    timeCumulativeMismatch = blockTime * 2 * pi * frequency / q;
 
     # number of time tiles
     numberOfTiles = 2^nextpow2(timeCumulativeMismatch / mismatchStep);
