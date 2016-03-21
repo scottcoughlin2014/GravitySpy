@@ -608,18 +608,10 @@ def wtransform(data, tiling, outlierFactor, \
 	sys.exit()
 
     #######################################################################
-    #                   setup independent analysis                        #
-    #######################################################################
-
-    intermediateData = data;
-    numberOfIntermediateChannels = numberOfChannels;
-    numberOfOutputChannels = numberOfChannels;
-    outputChannelNames = channelNames;
-
-    #######################################################################
     #                   Define some variables                             #
     #######################################################################
 
+    outputChannelNames = channelNames;
     numberOfPlanes = tiling['generalparams']['numberOfPlanes']
     #######################################################################
     #             initialize Q transform structures                       #
@@ -633,17 +625,42 @@ def wtransform(data, tiling, outlierFactor, \
     for channel in np.arange(0,numberOfChannels):
         channelstr = 'channel' + str(channel)
         transforms[channelstr] = {}
+        
+    # End loop over channels
 
 	# begin loop over Q planes
 	for plane in np.arange(0,numberOfPlanes):
 
 	    planestr = plane + str(plane)
 	    transforms[channelstr][planestr] = {}
-
+        
+        # Begin loop over frequency rows
 	    for row in tiling[planestr]['numberOfRows']:
 		    # create empty cell array of frequency row structures
 		    rowstr = row +str(row)
 		    transforms[channelstr][planestr][rowstr] = {}
+        # End loop over frequency rows
+
+    # End loop over Q planes
+    
+    # Initialize energies
+    energies = {}
+    # Initialize windowedData
+    windowedData = {}
+    # Initialize Tile Coefficients
+    tileCoefficients
+    # Initialize validIndices
+    validIndices = {}
+    # Initialize Quatiles strcuture arrays
+    lowerQuartile = {}
+    upperQuartile = {}
+    interQuartileRange = {}
+    # Initialize outlier threshold
+    outlierThreshold = {}
+    # Initialize mean energy
+    meanEnergy = {}
+    # Initialize Normalized energy
+    normalizedEnergies = {}
 
 
     ############################################################################
@@ -670,142 +687,160 @@ def wtransform(data, tiling, outlierFactor, \
             rightZeroPadLength = (tiling[channelstr][planestr][rowstr]['zeroPadLength'] + 1) / 2;
 
             # begin loop over intermediate channels
-            for intermediateChannelNumber in np.arange(0,numberOfIntermediateChannels):
-                windowedData = {}
-                windowedData['intermediateChannelNumber'] ={}
+            for channel in np.arange(0,numberOfChannels):
+                
+                channelstr = 'channel' + str(channel)
+                windowedData[channelstr] ={}
                 # extract and window in-band data
-                windowedData['intermediateChannelNumber'] = tiling[channelstr][planestr][rowstr]['window'] * \
-                intermediateData[tiling[channelstr][planestr][rowstr]['dataIndices']];
+                windowedData[channelstr] = tiling[channelstr][planestr][rowstr]['window'] * \
+                data[tiling[channelstr][planestr][rowstr]['dataIndices']];
 
                 # zero pad windowed data
-                windowedData['intermediateChannelNumber'] = np.pad(windowedData['intermediateChannelNumber'],[leftZeroPadLength,rightZeroPadLength],'constant',constant_values=(0,0))
+                windowedData[channelstr] = np.pad(windowedData[intChannelstr],\
+                                    [leftZeroPadLength,rightZeroPadLength],'constant',constant_values=(0,0))
                 
                 # reorder indices for fast fourier transform
-                windowedData['intermediateChannelNumber'] = \
-                windowedData['intermediateChannelNumber']([(end / 2 : end) (1 : end / 2 - 1)]);
+                endIndex = len(windowedData[channelstr])
+                order = np.arange(endIndex/2,endIndex)
+                order.append(np.arange(0,(endIndex/2)-1))
+                windowedData[channelstr] = \
+                [windowedData[channelstr][i] for i in order];
 
-                # end loop over intermediate channels
+            # end loop over intermediate channels
 
     	    ################################################################
     	    #        inverse fourier transform windowed data               #
             ################################################################
 
-	    # begin loop over intermediate channels
-	    for intermediateChannelNumber in np.arange(0,numberOfIntermediateChannels):
+            # begin loop over intermediate channels
+            for channel in np.arange(0,numberOfChannels):
+                channelstr = 'channel' + str(channel)
+                
+                # Initialize tileCoefficients
+                tileCoefficients[channelstr] = {}
+                # complex valued tile coefficients
+                tileCoefficients[channelstr] = np.fft.ifft(windowedData[intChannelstr]);
+            # End loop over intermediate channels
 
-	    	# complex valued tile coefficients
-        	tileCoefficients{intermediateChannelNumber} = ifft(windowedData{intermediateChannelNumber});
-		# End loop over intermediate channels
+            ##################################################################
+            #              energies directly or indirectly                   #
+            ##################################################################
+            # compute energies directly from intermediate data
+            for channel in np.arange(0,numberOfChannels):
+                channelstr = 'channel' + str(channel)
+                
+                energies[channelstr] = \
+                    tileCoefficients[channelstr].real**2 + \
+                    tileCoefficients[channelstr].imag**2 ;
 
-    	    ##################################################################
-    	    #              energies directly or indirectly                   #
-    	    ##################################################################
-      	    # compute energies directly from intermediate data
-      	    for channelNumber = in np.arange(0,numberOfIntermediateChannels):
-        	energies{channelNumber} = \
-          	    real(tileCoefficients{channelNumber}).^2 + \
-          	    imag(tileCoefficients{channelNumber}).^2 ;
+            # End loop over channels
 
-    	    ####################################################################
-   	    #        exclude outliers and filter transients from statistics    #
-	    ####################################################################
+            ####################################################################
+            #        exclude outliers and filter transients from statistics    #
+            ####################################################################
 
-    	    times = (0 :  tiling.planes{plane}.rows{row}.numberOfTiles - 1) * \
-            	tiling.planes{plane}.rows{row}.timeStep;
+    	    times = (0 :  tiling[channelstr][planestr][rowstr]['numberOfTiles'] - 1) * \
+            	tiling[channelstr][planestr][rowstr]['timeStep'];
 
-	    # begin loop over channels
-    	    for channelstr in np.arange(0,numberOfChannels):
-
+            # begin loop over channels
+    	    for channel in np.arange(0,numberOfChannels):
+                channelstr = 'channel' + str(channel)
+                
       	    	# indices of non-transient tiles
-      		validIndices{channelstr} = \
-          	find((times > \
-                	tiling.transientDuration) & \
+                validIndices[channelstr] = \
+                np.where((times > \
+                	tiling['generalparams']['transientDuration']) and \
                	     (times < \
-                	tiling.duration - tiling.transientDuration));
+                	tiling['generalparams']['blockTime']- tiling['generalparams']['transientDuration']));
 
-		# identify lower and upper quartile energies
-		sortedEnergies = \
-          	    sort(energies{channelstr}(validIndices{channelstr}));
-      		lowerQuartile{channelstr} = \
-          	sortedEnergies(round(0.25 * length(validIndices{channelstr})));
-      		upperQuartile{channelstr} = \
-          	sortedEnergies(round(0.75 * length(validIndices{channelstr})));
+                # identify lower and upper quartile energies
+                sortedEnergies = \
+                    np.sort(energies[channelstr][validIndices[channelstr]];
+                            lowerQuartile = {}
+                lowerQuartile[channelstr] = \
+                sortedEnergies[np.round(0.25 * length(validIndices[channelstr]))];
+                upperQuartile[channelstr] = \
+                sortedEnergies[np.round(0.75 * len(validIndices[channelstr]))];
 
-      		# determine inter quartile range
-      		interQuartileRange{channelstr} = upperQuartile{channelstr} - \
-                                          lowerQuartile{channelstr};
+                # determine inter quartile range
+                interQuartileRange[channelstr] = upperQuartile[channelstr] - \
+                                          lowerQuartile[channelstr];
 
-      		# energy threshold of outliers
-      		outlierThreshold{channelstr} = upperQuartile{channelstr} + \
-          	    outlierFactor * interQuartileRange{channelstr};
+                # energy threshold of outliers
+                outlierThreshold[channelstr] = upperQuartile[channelstr] + \
+                    outlierFactor * interQuartileRange[channelstr];
 
-      		# indices of non-outlier and non-transient tiles
-      		validIndices{channelstr} = \
-          	    find((energies{channelstr} < \
-                    outlierThreshold{channelstr}) & \
-                    (times > \
-                    tiling.transientDuration) & \
-                    (times < \
-                     tiling.duration - tiling.transientDuration));
+                # indices of non-outlier and non-transient tiles
+                validIndices[channelstr] = \
+                    np.where((energies[channelstr] < \
+                          outlierThreshold[channelstr]) and \
+                         (times > \
+                          tiling['generalparams']['transientDuration']) and \
+                         (times < \
+                          tiling['generalparams']['blockTime']- tiling['generalparams']['transientDuration']));
 
-    		# end loop over channels
+            # end loop over channels
 
-    	    # for reasonable outlier factors,
+            # for reasonable outlier factors,
     	    if outlierFactor < 100:
 
-      		# mean energy correction factor for outlier rejection bias
-      		meanCorrectionFactor = (4 * 3^outlierFactor - 1) / \
-                             ((4 * 3^outlierFactor - 1) - \
-                             (outlierFactor * log(3) + log(4)));
+                # mean energy correction factor for outlier rejection bias
+                meanCorrectionFactor = (4 * 3**outlierFactor - 1) / \
+                             ((4 * 3**outlierFactor - 1) - \
+                             (outlierFactor * np.log(3) + np.log(4)));
 
     	    # otherwise, for large outlier factors
     	    else:
 
-      		# mean energy correction factor for outlier rejection bias
-      		meanCorrectionFactor = 1;
+                # mean energy correction factor for outlier rejection bias
+                meanCorrectionFactor = 1;
 
+            # End if statement
 
     	    ####################################################################
     	    #       determine tile statistics and normalized energies          #
-	    ####################################################################
+            ####################################################################
 
     	    # begin loop over channels
-    	    for channelstr in np.arange(0,numberOfChannels):
+    	    for channel in np.arange(0,numberOfChannels):
+                channelstr = 'channel' + str(channel)
 
       	    	# mean of valid tile energies
-      	    	meanEnergy{channelstr} = \
-          	    mean(energies{channelstr}(validIndices{channelstr}));
+      	    	meanEnergy[channelstr] = \
+          	    mean(energies[channelstr](validIndices[channelstr]));
 
       	    	# correct for bias due to outlier rejection
-      	    	meanEnergy{channelstr} = meanEnergy{channelstr} * \
+      	    	meanEnergy[channelstr] = meanEnergy[channelstr] * \
           	    meanCorrectionFactor;
 
       	    	# normalized tile energies
-      		normalizedEnergies{channelstr} = energies{channelstr} / \
-          meanEnergy{channelstr};
+                normalizedEnergies[channelstr] = energies[channelstr] / \
+                        meanEnergy[channelstr];
 
-	    # end loop over channels
-    	    ####################################################################
+            # end loop over channels
+            
+            ####################################################################
     	    #              insert results into transform structure             #
-	    ####################################################################
+            ####################################################################
 
 
     	    # begin loop over channels
-    	    for channelstr in np.arange(0,numberOfChannels):
+    	    for channel in np.arange(0,numberOfChannels):
+                channelstr = 'channel' + str(channel)
 
       	    	# insert mean tile energy into frequency row structure
-      		transforms{channelstr}.planes{plane}.rows{row}.meanEnergy = \
-          	    meanEnergy{channelstr};
+                transforms[channelstr][planestr][rowstr]['meanEnergy'] = \
+                    meanEnergy[channelstr];
 
-      	   	# insert normalized tile energies into frequency row structure
-      		transforms{channelstr}.planes{plane}.rows{row}.normalizedEnergies = \
-          	normalizedEnergies{channelstr};
+                # insert normalized tile energies into frequency row structure
+                transforms[channelstr][planestr][rowstr]['normalizedEnergies'] = \
+                normalizedEnergies[channelstr];
       
-    	    # end loop over channels
+            # end loop over channels
 
-	########################################################################
-  	#                 end loop over frequency rows                         #
-  	########################################################################
+        ########################################################################
+        #                 end loop over frequency rows                         #
+        ########################################################################
 
 
     ############################################################################
@@ -816,9 +851,10 @@ def wtransform(data, tiling, outlierFactor, \
     #                return discrete Q transform structure                     #
     ############################################################################
 
-    for channelNumber in np.arange(0,numberOfIntermediateChannels):
-    	transforms{channelNumber}.channelName = \
-            outputChannelNames{channelNumber};
+    for channel in np.arange(0,numberOfChannels):
+        channelstr = 'channel' + str(channel)
+    	transforms[channelstr]['channelName'] = \
+            outputChannelNames[channelstr];
 
     return transforms
 
