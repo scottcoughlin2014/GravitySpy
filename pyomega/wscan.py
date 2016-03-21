@@ -199,23 +199,23 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 
     for plane in np.arange(0,numberOfPlanes):
 
-	q = qs[plane]
+        q = qs[plane]
 
-  	#######################################################################
-  	#                 determine plane properties                          #
-	#######################################################################
+        #######################################################################
+        #                 determine plane properties                          #
+        #######################################################################
 
-	# find Q prime for the plane
-  	qPrime = q / qPrimeToQ;
+        # find Q prime for the plane
+        qPrime = q / qPrimeToQ;
 
-  	# for large qPrime
+        # for large qPrime
   	if qPrime > 10:
 
-    	    # use asymptotic value of planeNormalization
-    	    planeNormalization = 1
+        # use asymptotic value of planeNormalization
+    	planeNormalization = 1
   	else:
 
-    	    # polynomial coefficients for plane normalization factor
+    	# polynomial coefficients for plane normalization factor
 	    coefficients = [\
 		          np.log((qPrime + 1) / (qPrime - 1)), -2,\
                     - 4 * np.log((qPrime + 1) / (qPrime - 1)), 22 / 3,\
@@ -225,104 +225,104 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 	    # Cast as an array
 	    coefficients = np.asarray(coefficients)
 
-    	    # plane normalization factor
-    	    planeNormalization = np.sqrt(256 / (315 * qPrime * \
+    	# plane normalization factor
+    	planeNormalization = np.sqrt(256 / (315 * qPrime * \
                                      np.polyval(coefficients, qPrime)));
 
-  	###################################################################
-	#                   determine frequency rows                      #
-  	###################################################################
+        ###################################################################
+        #                   determine frequency rows                      #
+        ###################################################################
 
-  	# plane specific minimum allowable frequency to provide sufficient statistics
- 	minimumAllowableFrequency = minimumAllowableIndependents * q / \
+        # plane specific minimum allowable frequency to provide sufficient statistics
+        minimumAllowableFrequency = minimumAllowableIndependents * q / \
                               (2 * np.pi * tiling['generalparams']['duration']);
 
-	# plane specific maximum allowable frequency to avoid window aliasing
-	maximumAllowableFrequency = nyquistFrequency / (1 + qPrimeToQ / q);
+        # plane specific maximum allowable frequency to avoid window aliasing
+        maximumAllowableFrequency = nyquistFrequency / (1 + qPrimeToQ / q);
 
-	# use plane specific minimum allowable frequency if requested
-	if tiling['generalparams']['minimumFrequency'] == 0:
-	    minimumFrequency = minimumAllowableFrequency;
+        # use plane specific minimum allowable frequency if requested
+        if tiling['generalparams']['minimumFrequency'] == 0:
+            minimumFrequency = minimumAllowableFrequency;
 
-	# use plane specific maximum allowable frequency if requested
-	if np.isinf(tiling['generalparams']['maximumFrequency']):
-	    maximumFrequency = maximumAllowableFrequency;
+        # use plane specific maximum allowable frequency if requested
+        if np.isinf(tiling['generalparams']['maximumFrequency']):
+            maximumFrequency = maximumAllowableFrequency;
 
-	# cumulative mismatch across frequency range
-	frequencyCumulativeMismatch = np.log(maximumFrequency / \
-	    minimumFrequency) * np.sqrt(2 + q**2) / 2;
+        # cumulative mismatch across frequency range
+        frequencyCumulativeMismatch = np.log(maximumFrequency / \
+            minimumFrequency) * np.sqrt(2 + q**2) / 2;
 
-	# number of frequency rows
-	numberOfRows = np.ceil(frequencyCumulativeMismatch / mismatchStep);
+        # number of frequency rows
+        numberOfRows = np.ceil(frequencyCumulativeMismatch / mismatchStep);
 
-	# insure at least one row
-	if numberOfRows == 0:
-	    numberOfRows = 1
+        # insure at least one row
+        if numberOfRows == 0:
+            numberOfRows = 1
 
-	# mismatch between neighboring frequency rows
-	frequencyMismatchStep = frequencyCumulativeMismatch / numberOfRows;
+        # mismatch between neighboring frequency rows
+        frequencyMismatchStep = frequencyCumulativeMismatch / numberOfRows;
 
-	# index of frequency rows
-	frequencyIndices = np.linspace(0.5,numberOfRows - 0.5,numberOfRows);
+        # index of frequency rows
+        frequencyIndices = np.linspace(0.5,numberOfRows - 0.5,numberOfRows);
 
-	# vector of frequencies
-	frequencies = minimumFrequency * np.exp((2 / np.sqrt(2 + q**2)) * \
+        # vector of frequencies
+        frequencies = minimumFrequency * np.exp((2 / np.sqrt(2 + q**2)) * \
                                        frequencyIndices * \
                                        frequencyMismatchStep);
 
-	# ratio between successive frequencies
-	frequencyRatio = np.exp((2 / np.sqrt(2 + q**2)) * frequencyMismatchStep);
+        # ratio between successive frequencies
+        frequencyRatio = np.exp((2 / np.sqrt(2 + q**2)) * frequencyMismatchStep);
 
-	# project frequency vector onto realizable frequencies
-	frequencies = np.round(frequencies / minimumFrequencyStep) * \
+        # project frequency vector onto realizable frequencies
+        frequencies = np.round(frequencies / minimumFrequencyStep) * \
                 minimumFrequencyStep;
 
-	#######################################################################
-	#             create Q transform plane structure                      #
-	#######################################################################
+        #######################################################################
+        #             create Q transform plane structure                      #
+        #######################################################################
 
-	planestr = 'planes' +str(plane)
-	tiling[planestr] = {}
-	tiling["generalparams"]["duration"] = blockTime;
-	# insert Q of plane into Q plane structure
-	tiling[planestr]['q'] = q;
+        planestr = 'planes' +str(plane)
+        tiling[planestr] = {}
+        tiling["generalparams"]["duration"] = blockTime;
+        # insert Q of plane into Q plane structure
+        tiling[planestr]['q'] = q;
 
-	# insert minimum search frequency of plane into Q plane structure
-	tiling[planestr]['minimumFrequency'] = minimumFrequency;
+        # insert minimum search frequency of plane into Q plane structure
+        tiling[planestr]['minimumFrequency'] = minimumFrequency;
 
-	# insert maximum search frequency of plane into Q plane structure
-	tiling[planestr]['maximumFrequency'] = maximumFrequency;
+        # insert maximum search frequency of plane into Q plane structure
+        tiling[planestr]['maximumFrequency'] = maximumFrequency;
 
-	# insert plane normalization factor into Q plane structure
-	tiling[planestr]['normalization'] = planeNormalization;
+        # insert plane normalization factor into Q plane structure
+        tiling[planestr]['normalization'] = planeNormalization;
 
-	# insert frequency vector into Q plane structure
-	tiling[planestr]['frequencies'] = frequencies;
+        # insert frequency vector into Q plane structure
+        tiling[planestr]['frequencies'] = frequencies;
 
-	# insert number of frequency rows into Q plane structure
-	tiling[planestr]['numberOfRows'] = numberOfRows;
+        # insert number of frequency rows into Q plane structure
+        tiling[planestr]['numberOfRows'] = numberOfRows;
 
-	# initialize cell array of frequency rows into Q plane structure
-	for i in np.arange(0,numberOfRows):
-	    rowstr = 'row' + str(i)
-	    tiling[planestr][rowstr] = {};
+        # initialize cell array of frequency rows into Q plane structure
+        for i in np.arange(0,numberOfRows):
+            rowstr = 'row' + str(i)
+            tiling[planestr][rowstr] = {};
 
-	# initialize number of tiles in plane counter
-	tiling[planestr]['numberOfTiles'] = 0;
+        # initialize number of tiles in plane counter
+        tiling[planestr]['numberOfTiles'] = 0;
 
-	# initialize number of independent tiles in plane counter
-	tiling[planestr]['numberOfIndependents'] = 0;
+        # initialize number of independent tiles in plane counter
+        tiling[planestr]['numberOfIndependents'] = 0;
 
-	# initialize number of flops in plane counter
-	tiling[planestr]['numberOfFlops'] = 0;
+        # initialize number of flops in plane counter
+        tiling[planestr]['numberOfFlops'] = 0;
 
-	#######################################################################
-	#               begin loop over frequency rows                        #
-	#######################################################################
+        #######################################################################
+        #               begin loop over frequency rows                        #
+        #######################################################################
 
-	for row in np.arange(0,numberOfRows):
+        for row in np.arange(0,numberOfRows):
 
-	    rowstr = 'row' + str(row)
+            rowstr = 'row' + str(row)
     	    # extract frequency of row from frequency vector
     	    frequency = frequencies[row];
 
@@ -333,7 +333,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     	    # bandwidth for coincidence testing
     	    bandwidth = 2 * np.sqrt(np.pi) * frequency / q;
 
-   	    # duration for coincidence testing
+            # duration for coincidence testing
     	    duration = 1 / bandwidth;
 
     	    # frequency step for integration
@@ -389,7 +389,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     	    # bi square window function
      	    window = (1 - windowArgument**2)**2;
 
-   	    # row normalization factor
+            # row normalization factor
     	    rowNormalization = np.sqrt((315 * qPrime) / (128 * frequency));
 
     	    # inverse fft normalization factor
@@ -398,16 +398,16 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     	    # normalize window
     	    window = window * ifftNormalization * rowNormalization;
 
-    	    # number of zeros to append to windowed data
-   	    zeroPadLength = numberOfTiles - windowLength;
+            # number of zeros to append to windowed data
+            zeroPadLength = numberOfTiles - windowLength;
 
     	    # vector of data indices to inverse fourier transform
     	    dataIndices = np.round(1 + frequency / minimumFrequencyStep + windowIndices);	
-	    ####################################################################
-	    #           create Q transform row structure                       #
-	    ####################################################################
+            ####################################################################
+            #           create Q transform row structure                       #
+            ####################################################################
 
-	    # insert frequency of row into frequency row structure
+            # insert frequency of row into frequency row structure
             tiling[planestr][rowstr]['frequency'] = frequency;
 
     	    # insert duration into frequency row structure
@@ -454,10 +454,9 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     	    tiling[planestr]['numberOfFlops'] = \
         	tiling[planestr]['numberOfFlops'] + numberOfFlops;
 
-	    #print tiling[planestr]['numberOfFlops']
-  	    ###################################################################
-  	    #            end loop over frequency rows                         #
-  	    ###################################################################
+            ##############################################################
+            #       end loop over frequency rows                         #
+            ##############################################################
 	
         # increment number of tiles in plane counter
         tiling['generalparams']['numberOfTiles'] = \
