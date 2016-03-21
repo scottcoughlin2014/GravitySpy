@@ -8,7 +8,7 @@ from glue import pipeline
 from glue.lal import CacheEntry
 import numpy as np
 from gwpy.timeseries import TimeSeries
-import scipy
+import scipy 
 
 ###############################################################################
 ##########################                             ########################
@@ -591,15 +591,15 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 def highpassfilt(data,tiling):
 
     # determine required data lengths
-    dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['blockTime'];
+    dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
     halfDataLength = dataLength / 2 + 1;
 
     # nyquist frequency
     nyquistFrequency = tiling["generalparams"]["sampleFrequency"] / 2;
 
     # linear predictor error filter order
-    lpefOrder = np.ceil(tiling["generalparams"]["sampleFrequency"] * \
-	tiling['generalparams']['whiteningDuration']);
+    lpefOrder = int(np.ceil(tiling["generalparams"]["sampleFrequency"] * \
+	tiling['generalparams']['whiteningDuration']));
 
     if tiling['generalparams']['highPassCutoff'] > 0:
 	# high pass filter order
@@ -610,15 +610,12 @@ def highpassfilt(data,tiling):
 	scipy.signal.butter(filterOrder, tiling['generalparams']['highPassCutoff'] \
 	/ nyquistFrequency, btype='high',output='sos');
 
-	data = idata.filter(hpfSOS)
+	data = data.filter(hpfSOS)
 
     # End if statement
-
     # supress high pass filter transients
-    data[np.arange(0,lpefOrder)] = \
-	np.zeros(lpefOrder);
-    data[np.arange(dataLength - lpefOrder ,dataLength)] = \
-	np.zeros(lpefOrder);
+    data.value[np.arange(0,lpefOrder)] = np.zeros(lpefOrder);
+    data.value[np.arange(dataLength - lpefOrder ,dataLength)] = np.zeros(lpefOrder);
 
     return data
 
@@ -642,7 +639,7 @@ def wtransform(data, tiling, outlierFactor, \
     numberOfChannels = length(data);
 
     # determine required data lengths
-    dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['blockTime'];
+    dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
     halfDataLength = dataLength / 2 + 1;
 
     # validate data length and force row vectors
@@ -787,8 +784,8 @@ def wtransform(data, tiling, outlierFactor, \
             #        exclude outliers and filter transients from statistics    #
             ####################################################################
 
-    	    times = (0 :  tiling[channelstr][planestr][rowstr]['numberOfTiles'] - 1) * \
-            	tiling[channelstr][planestr][rowstr]['timeStep'];
+    	    times = np.arange(0,(tiling[channelstr][planestr][rowstr]['numberOfTiles'] - 1) * \
+            	tiling[channelstr][planestr][rowstr]['timeStep']);
 
             # begin loop over channels
     	    for channel in np.arange(0,numberOfChannels):
@@ -799,12 +796,11 @@ def wtransform(data, tiling, outlierFactor, \
                 np.where((times > \
                 	tiling['generalparams']['transientDuration']) and \
                	     (times < \
-                	tiling['generalparams']['blockTime']- tiling['generalparams']['transientDuration']));
+                	tiling['generalparams']['duration']- tiling['generalparams']['transientDuration']));
 
                 # identify lower and upper quartile energies
                 sortedEnergies = \
-                    np.sort(energies[channelstr][validIndices[channelstr]];
-                            lowerQuartile = {}
+                    np.sort(energies[channelstr][validIndices[channelstr]]);
                 lowerQuartile[channelstr] = \
                 sortedEnergies[np.round(0.25 * length(validIndices[channelstr]))];
                 upperQuartile[channelstr] = \
@@ -825,7 +821,7 @@ def wtransform(data, tiling, outlierFactor, \
                          (times > \
                           tiling['generalparams']['transientDuration']) and \
                          (times < \
-                          tiling['generalparams']['blockTime']- tiling['generalparams']['transientDuration']));
+                          tiling['generalparams']['duration']- tiling['generalparams']['transientDuration']));
 
             # end loop over channels
 
@@ -1505,8 +1501,10 @@ else:
 plot = data.plot()
 plot.set_title('TimeSeries')
 plot.set_ylabel('Gravitational-wave strain amplitude')
-for iTime in plotTimeRanges:
-    plot.set_xlim(blockTime + plotTimeRanges[iTime]* -0.5,blockTime + plotTimeRanges[iTime]* 0.5)
+for iTime in np.arange(0,len(plotTimeRanges)):
+    xmin = blockTime + plotTimeRanges[iTime]* -0.5
+    xmax = blockTime + plotTimeRanges[iTime]* 0.5
+    plot.set_xlim(xmin,xmax)
     plot.save('/home/scoughlin/public_html/test3/timeseries' + str(iTime) + '.png')
 
 # resample data
@@ -1528,10 +1526,11 @@ data = highpassfilt(data,tiling)
 plot = data.plot()
 plot.set_title('HighPassFilter')
 plot.set_ylabel('Gravitational-wave strain amplitude')
-for iTime in plotTimeRanges:
-    plot.set_xlim(blockTime + plotTimeRanges[iTime]* -0.5,blockTime + plotTimeRanges[iTime]* 0.5)
-    plot.save('/home/scoughlin/public_html/test3/highpass' + str(iTime) + '.pn
-g')
+for iTime in np.arange(0,len(plotTimeRanges)):
+    xmin = blockTime + plotTimeRanges[iTime]* -0.5
+    xmax = blockTime + plotTimeRanges[iTime]* 0.5
+    plot.set_xlim(xmin,xmax)
+    plot.save('/home/scoughlin/public_html/test3/highpass' + str(iTime) + '.png')
 
 
 FFT = 2*len(data)/\
@@ -1541,7 +1540,11 @@ data = data.whiten(FFT, overlap=0.5, method='welch', window='hanning', detrend='
 plot = data.plot()
 plot.set_title('Whitened')
 plot.set_ylabel('Gravitational-wave strain amplitude')
-plot.save('/home/scoughlin/public_html/test3/whitened.png')
+for iTime in np.arange(0,len(plotTimeRanges)):
+    xmin = blockTime + plotTimeRanges[iTime]* -0.5
+    xmax = blockTime + plotTimeRanges[iTime]* 0.5
+    plot.set_xlim(xmin,xmax)
+    plot.save('/home/scoughlin/public_html/test3/whitened' + str(iTime) + '.png')
 
 # q transform whitened data
 coefficients = [];
