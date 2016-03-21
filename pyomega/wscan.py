@@ -642,9 +642,9 @@ def wtransform(data, tiling, outlierFactor, \
 	    transforms[channelstr][planestr] = {}
 
 	    for row in tiling[planestr]['numberOfRows']:
-		# create empty cell array of frequency row structures
-		rowstr = row +str(row)
-		transforms[channelstr][planestr][rowstr] = {}
+		    # create empty cell array of frequency row structures
+		    rowstr = row +str(row)
+		    transforms[channelstr][planestr][rowstr] = {}
 
 
     ############################################################################
@@ -654,43 +654,42 @@ def wtransform(data, tiling, outlierFactor, \
     # begin loop over Q planes
     for plane in np.arange(0,numberOfPlanes):
 
-	########################################################################
-	#                begin loop over frequency rows                        #	########################################################################
+        ########################################################################
+        #                begin loop over frequency rows                        #
+        ########################################################################
 
-	# begin loop over frequency rows
-	for row in tiling[planestr]['numberOfRows']:
-	    ####################################################################
+        # begin loop over frequency rows
+        for row in tiling[planestr]['numberOfRows']:
+            ####################################################################
     	    #          extract and window frequency domain data                #
-	    ####################################################################
+            ####################################################################
 
     	    # number of zeros to pad at negative frequencies
     	    leftZeroPadLength = (tiling[channelstr][planestr][rowstr]['zeroPadLength'] - 1) / 2;
 
     	    # number of zeros to pad at positive frequencies
-	    rightZeroPadLength = (tiling[channelstr][planestr][rowstr]['zeroPadLength'] + 1) / 2;
+            rightZeroPadLength = (tiling[channelstr][planestr][rowstr]['zeroPadLength'] + 1) / 2;
 
-	    # begin loop over intermediate channels
-	    for intermediateChannelNumber in np.arange(0,numberOfIntermediateChannels):
-		windowedData = {}
-		windowedData['intermediateChannelNumber'] ={}
-		# extract and window in-band data
-		windowedData['intermediateChannelNumber'] = tiling[channelstr][planestr][rowstr]['window'] * \
-		intermediateData[tiling[channelstr][planestr][rowstr]['dataIndices']];
+            # begin loop over intermediate channels
+            for intermediateChannelNumber in np.arange(0,numberOfIntermediateChannels):
+                windowedData = {}
+                windowedData['intermediateChannelNumber'] ={}
+                # extract and window in-band data
+                windowedData['intermediateChannelNumber'] = tiling[channelstr][planestr][rowstr]['window'] * \
+                intermediateData[tiling[channelstr][planestr][rowstr]['dataIndices']];
 
-		# zero pad windowed data
-		windowedData['intermediateChannelNumber'] = [np.zeros(1, leftZeroPadLength) \
-                       windowedData['intermediateChannelNumber'] \
-                       np.zeros(1, rightZeroPadLength)];
+                # zero pad windowed data
+                windowedData['intermediateChannelNumber'] = np.pad(windowedData['intermediateChannelNumber'],[leftZeroPadLength,rightZeroPadLength],'constant',constant_values=(0,0))
+                
+                # reorder indices for fast fourier transform
+                windowedData['intermediateChannelNumber'] = \
+                windowedData['intermediateChannelNumber']([(end / 2 : end) (1 : end / 2 - 1)]);
 
-		# reorder indices for fast fourier transform
-		windowedData['intermediateChannelNumber'] = \
-		windowedData['intermediateChannelNumber']([(end / 2 : end) (1 : end / 2 - 1)]);
-
-    		# end loop over intermediate channels
+                # end loop over intermediate channels
 
     	    ################################################################
     	    #        inverse fourier transform windowed data               #
-	    ################################################################
+            ################################################################
 
 	    # begin loop over intermediate channels
 	    for intermediateChannelNumber in np.arange(0,numberOfIntermediateChannels):
