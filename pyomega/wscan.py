@@ -8,6 +8,7 @@ from glue import pipeline
 from glue.lal import CacheEntry
 import numpy as np
 from gwpy.timeseries import TimeSeries
+import scipy
 
 ###############################################################################
 ##########################                             ########################
@@ -211,11 +212,11 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
         # for large qPrime
   	if qPrime > 10:
 
-        # use asymptotic value of planeNormalization
-    	planeNormalization = 1
+            # use asymptotic value of planeNormalization
+    	    planeNormalization = 1
   	else:
 
-    	# polynomial coefficients for plane normalization factor
+    	    # polynomial coefficients for plane normalization factor
 	    coefficients = [\
 		          np.log((qPrime + 1) / (qPrime - 1)), -2,\
                     - 4 * np.log((qPrime + 1) / (qPrime - 1)), 22 / 3,\
@@ -225,8 +226,8 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 	    # Cast as an array
 	    coefficients = np.asarray(coefficients)
 
-    	# plane normalization factor
-    	planeNormalization = np.sqrt(256 / (315 * qPrime * \
+    	    # plane normalization factor
+    	    planeNormalization = np.sqrt(256 / (315 * qPrime * \
                                      np.polyval(coefficients, qPrime)));
 
         ###################################################################
@@ -581,6 +582,53 @@ def medianmeanaveragespectrum(data,fs,N,w):
     # ---- Normalize to physical units.
     S = 2/(N*fs)*S;
 
+###############################################################################
+#####################                                  ########################
+#####################           highpassfilt           ########################
+#####################                                  ########################
+###############################################################################
+
+def highpassfilt(data,tiling):
+
+    # determine required data lengths
+    dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['blockTime'];
+    halfDataLength = dataLength / 2 + 1;
+
+    # nyquist frequency
+    nyquistFrequency = tiling["generalparams"]["sampleFrequency"] / 2;
+
+    # linear predictor error filter order
+    lpefOrder = np.ceil(tiling["generalparams"]["sampleFrequency"] * \
+	tiling['generalparams']['whiteningDuration']);
+
+    if tiling['generalparams']['highPassCutoff'] > 0:
+	# high pass filter order
+	filterOrder = 12;
+
+	# design high pass filter
+	hpfSOS = \
+	scipy.signal.butter(filterOrder, tiling['generalparams']['highPassCutoff'] \
+	/ nyquistFrequency, btype='high',output='sos');
+
+	data = idata.filter(hpfSOS)
+
+    # End if statement
+
+    # supress high pass filter transients
+    data[np.arange(0,lpefOrder)] = \
+	np.zeros(lpefOrder);
+    data[np.arange(dataLength - lpefOrder ,dataLength)] = \
+	np.zeros(lpefOrder);
+
+    return data
+
+###############################################################################
+#####################                                  ########################
+#####################           makePSD                ########################
+#####################                                  ########################
+###############################################################################
+def makePSD(data,tiling):
+    return
 ###############################################################################
 #####################                                  ########################
 #####################           wtransform             ########################
@@ -1435,7 +1483,7 @@ else:
 	IDstring = opts.uniqueID
 
 ##############################################################################
-#               identify statistically significant channels                  #
+#               Process Channel Data                                         #
 ##############################################################################
 
 # find closest sample time to event time
@@ -1453,6 +1501,14 @@ if opts.NSDF:
 else:
 	data = TimeSeries.read(frameCacheFile,channelName, format='gwf',start=startTime,end=stopTime)
 
+# Plot Time Series at given plot durations
+plot = data.plot()
+plot.set_title('TimeSeries')
+plot.set_ylabel('Gravitational-wave strain amplitude')
+for iTime in plotTimeRanges:
+    plot.set_xlim(blockTime + plotTimeRanges[iTime]* -0.5,blockTime + plotTimeRanges[iTime]* 0.5)
+    plot.save('/home/scoughlin/public_html/test3/timeseries' + str(iTime) + '.png')
+
 # resample data
 data = data.resample(sampleFrequency)
  
@@ -1465,7 +1521,27 @@ tiling = wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
              whiteningDuration, transientFactor);
 
 # high pass filter and whiten data
-whitenedData = wcondition(rawData, tiling);
+#whitenedData = wcondition(rawData, tiling);
+#data = data.highpass(tiling['generalparams']['highPassCutoff'])
+data = highpassfilt(data,tiling)
+# Plot HighPass Filtered Time  Series at given plot durations
+plot = data.plot()
+plot.set_title('HighPassFilter')
+plot.set_ylabel('Gravitational-wave strain amplitude')
+for iTime in plotTimeRanges:
+    plot.set_xlim(blockTime + plotTimeRanges[iTime]* -0.5,blockTime + plotTimeRanges[iTime]* 0.5)
+    plot.save('/home/scoughlin/public_html/test3/highpass' + str(iTime) + '.pn
+g')
+
+
+FFT = 2*len(data)/\
+(tiling['generalparams']['sampleFrequency']*tiling['generalparams']['whiteningDuration'])-1
+data = data.whiten(FFT, overlap=0.5, method='welch', window='hanning', detrend='constant')
+
+plot = data.plot()
+plot.set_title('Whitened')
+plot.set_ylabel('Gravitational-wave strain amplitude')
+plot.save('/home/scoughlin/public_html/test3/whitened.png')
 
 # q transform whitened data
 coefficients = [];
