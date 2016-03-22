@@ -1012,12 +1012,13 @@ def wmeasure(transforms, tiling, startTime, \
 
     # if only a single Q is requested, find nearest Q plane
     if len(qRange) == 1:
-      [ignore, qPlane] = min(abs(np.log(tiling['generalparams']['qs']) / qRange));
+      [ignore, qPlane] = min(abs(np.log(tiling['generalparams']['qs']) / \
+                                 qRange));
       qRange = tiling['generalparams']['qs'][qPlane] * [1 1];
 
-    ################################################################################
-    #                       validate command line arguments                        #
-    ################################################################################
+    ##########################################################################
+    #                    validate command line arguments                     #
+    ##########################################################################
 
     # validate tiling structure
     if ~strcmp(tiling.id, 'Discrete Q-transform tile structure'),
@@ -1040,9 +1041,9 @@ def wmeasure(transforms, tiling, startTime, \
       error('Q range must be scalar or two component vector [Qmin Qmax].');
 
 
-    ################################################################################
-    #                      initialize measurement structures                       #
-    ################################################################################
+    ##########################################################################
+    #                   initialize measurement structures                    #
+    ##########################################################################
 
     # Initialize measurements cell
     measurements = {}
@@ -1064,7 +1065,7 @@ def wmeasure(transforms, tiling, startTime, \
         measurements[channelstr]['peakFrequency'] = 0;
         measurements[channelstr]['peakQ'] = 0;
         measurements[channelstr]['peakDuration'] = 0;
-        measurements[channelstr]['peakBandwidth']' = 0;
+        measurements[channelstr]['peakBandwidth'] = 0;
         measurements[channelstr]['peakNormalizedEnergy'] = 0;
         measurements[channelstr]['peakAmplitude'] = 0;
 
@@ -1087,42 +1088,42 @@ def wmeasure(transforms, tiling, startTime, \
         # end loop over channels
 
 
-    ################################################################################
-    #                           begin loop over Q planes                           #
-    ################################################################################
+    ###########################################################################
+    #                      begin loop over Q planes                           #
+    ###########################################################################
 
     # begin loop over Q planes
     for plane in np.arange(0,numberOfPlanes):
         planestr = 'planes' +str(plane)
         numberOfRows = tiling[planestr]['numberOfRows']
       
-        ##############################################################################
-        #                              threshold on Q                                #
-        ##############################################################################
+        #######################################################################
+        #                       threshold on Q                                #
+        #######################################################################
 
         # skip Q planes outside of requested Q range
         if ((tiling[planestr]['q'] < min(qRange)) or \
           (tiling[planestr]['q'] > max(qRange))):
             break;
 
-        ##############################################################################
-        #                      begin loop over frequency rows                        #
-        ##############################################################################
+        #######################################################################
+        #               begin loop over frequency rows                        #
+        #######################################################################
 
         # begin loop over frequency rows
         for row in np.arange(0,numberOfRows):
             rowstr = 'row' + str(row)
 
-            ############################################################################
-            #                           calculate times                                #
-            ############################################################################
+            ###################################################################
+            #                  calculate times                                #
+            ###################################################################
 
             times = np.arange(0,(tiling[channelstr][planestr][rowstr]['numberOfTiles'] - 1) * \
                    tiling[channelstr][planestr][rowstr]['timeStep']);
 
-            ############################################################################
-            #                    threshold on central frequency                        #
-            ############################################################################
+            ###################################################################
+            #           threshold on central frequency                        #
+            ###################################################################
 
             # skip frequency rows outside of requested frequency range
             if ((tiling[planestr][rowstr]['frequency'] < \
@@ -1131,9 +1132,9 @@ def wmeasure(transforms, tiling, startTime, \
                  max(frequencyRange))):
                     break;
 
-            ############################################################################
-            #                      threshold on central time                           #
-            ############################################################################
+            ###################################################################
+            #             threshold on central time                           #
+            ###################################################################
         
             # skip tiles outside requested time range
             tileIndices = \
@@ -1142,25 +1143,25 @@ def wmeasure(transforms, tiling, startTime, \
                  (times <= \
                   (referenceTime - startTime + max(timeRange))));
 
-            ############################################################################
-            #           differential time-frequency area for integration               #
-            ############################################################################
+            ###################################################################
+            #  differential time-frequency area for integration               #
+            ###################################################################
         
             # differential time-frequency area for integration
             differentialArea = tiling[planestr][rowstr]['timeStep'] * \
                            tiling[planestr][rowstr]['frequencyStep'];
 
-            ############################################################################
-            #                       begin loop over channels                           #
-            ############################################################################
+            ###################################################################
+            #              begin loop over channels                           #
+            ###################################################################
         
             # begin loop over channels
             for channel in np.arange(0,numberOfChannels):
                 channelstr = 'channel' + str(channel)
 
-                ##########################################################################
-                #                   update peak tile properties                          #
-                ##########################################################################
+                ###############################################################
+                #        update peak tile properties                          #
+                ###############################################################
           
                 # vector of row tile normalized energies
                 normalizedEnergies = transforms[channelstr][planestr][rowstr]\
@@ -1170,7 +1171,8 @@ def wmeasure(transforms, tiling, startTime, \
                 [peakNormalizedEnergy, peakIndex] = max(normalizedEnergies);
 
                 # if peak tile is in this row
-                if peakNormalizedEnergy > measurements[channelstr]['peakNormalizedEnergy']:
+                if peakNormalizedEnergy > \
+                        measurements[channelstr]['peakNormalizedEnergy']:
 
                     # update plane index of peak tile
                     peakPlane[channelstr] = plane;
@@ -1179,22 +1181,24 @@ def wmeasure(transforms, tiling, startTime, \
                     peakIndex = tileIndices[peakIndex];
                   
                     # update center time of peak tile
-                    measurements[channelstr]['peakTime'] = ...
+                    measurements[channelstr]['peakTime'] = \
                         times[peakIndex] + startTime;
 
                     # update center frequency of peak tile
-                    measurements[channelstr].peakFrequency = ...
+                    measurements[channelstr].peakFrequency = \
                         tiling.[planestr][rowstr]frequency;
 
                     # update q of peak tile
-                    measurements[channelstr]['peakQ']= ...
+                    measurements[channelstr]['peakQ']= \
                         tiling[planestr]['q'];
 
                     # update duration of peak tile
-                    measurements[channelstr]['peakDuration'] = tiling[planestr][rowstr]['duration'];
+                    measurements[channelstr]['peakDuration'] = \
+                                tiling[planestr][rowstr]['duration'];
 
                     # update bandwidth of peak tile
-                    measurements[channelstr]['peakBandwidth'] = tiling.[planestr][rowstr]['bandwidth'];
+                    measurements[channelstr]['peakBandwidth'] = \
+                                tiling.[planestr][rowstr]['bandwidth'];
                       
                     # update normalized energy of peak tile
                     measurements[channelstr]['peakNormalizedEnergy'] = \
@@ -1209,13 +1213,14 @@ def wmeasure(transforms, tiling, startTime, \
                             
                 # End If Statement
           
-                ##########################################################################
-                #                update weighted signal properties                       #
-                ##########################################################################
+                ###############################################################
+                #                update weighted signal properties            #
+                ###############################################################
 
                 # threshold on significance
                 normalizedEnergyThreshold = 4.5;
-                significantIndices = np.where(normalizedEnergies > normalizedEnergyThreshold);
+                significantIndices = np.where(normalizedEnergies > \
+                                                normalizedEnergyThreshold);
                 normalizedEnergies = normalizedEnergies[significantIndices];
                 significantIndices = tileIndices[significantIndices];
 
@@ -1276,19 +1281,19 @@ def wmeasure(transforms, tiling, startTime, \
                         len(normalizedEnergies) * \
                             differentialArea;
           
-            ############################################################################
-            #                        end loop over channels                            #
-            ############################################################################
+            ##################################################################
+            #              end loop over channels                            #
+            ##################################################################
 
 
-        ##############################################################################
-        #                       end loop over frequency rows                         #
-        ##############################################################################
+        ######################################################################
+        #               end loop over frequency rows                         #
+        ######################################################################
         
 
-        ##############################################################################
-        #                       normalize signal properties                          #
-        ##############################################################################
+        ######################################################################
+        #               normalize signal properties                          #
+        ######################################################################
       
         # begin loop over channels
         for channel in np.arange(0,numberOfChannels):
@@ -1313,7 +1318,9 @@ def wmeasure(transforms, tiling, startTime, \
                   measurements[channelstr]['signalAmplitude'][plane];
             # End If Statement
 
-            # duration and bandwidth are second central moments in time and frequency
+            # duration and bandwidth are second central
+            # moments in time and frequency
+            
             measurements[channelstr]['signalDuration'][plane] = \
                 np.sqrt(measurements[channelstr]['signalDuration'][plane] - \
                      measurements[channelstr]['signalTime'][plane]**2);
@@ -1326,19 +1333,19 @@ def wmeasure(transforms, tiling, startTime, \
                 np.sqrt(measurements[channelstr]['signalAmplitude'][plane]);
 
             # add start time to measured central time
-            measurements[channelstr]['signalTime'](plane) = ...
+            measurements[channelstr]['signalTime'](plane) = \
                 np.measurements[channelstr]['signalTime'](plane) + startTime;
 
         # end loop over channels
 
       
-    ################################################################################
-    #                            end loop over Q planes                            #
-    ################################################################################
+    ######################################################################
+    #                  end loop over Q planes                            #
+    ######################################################################
 
-    ################################################################################
-    #          report signal properties from plane with peak significance          #
-    ################################################################################
+    ######################################################################
+    #   report signal properties from plane with peak significance       #
+    ######################################################################
 
     for channel in np.arange(0,numberOfChannels):
         channelstr = 'channel' + str(channel)
@@ -1391,9 +1398,9 @@ def wmeasure(transforms, tiling, startTime, \
 
     # end loop over channels
 
-    ################################################################################
-    #                 return most significant tile properties                      #
-    ################################################################################
+    ###########################################################################
+    #           return most significant tile properties                       #
+    ###########################################################################
 
     return measurements
 
