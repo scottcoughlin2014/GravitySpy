@@ -1487,10 +1487,9 @@ plot = data.plot()
 plot.set_title('TimeSeries')
 plot.set_ylabel('Gravitational-wave strain amplitude')
 for iTime in np.arange(0,len(plotTimeRanges)):
-    xmin = blockTime + plotTimeRanges[iTime]* -0.5
-    xmax = blockTime + plotTimeRanges[iTime]* 0.5
-    plot.set_xlim(xmin,xmax)
-    plot.save('/home/scoughlin/public_html/test3/timeseries' + str(iTime) + '.png')
+    halfTimeRange = plotTimeRanges[iTime]*0.5
+    plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
+    plot.save('/home/scoughlin/public_html/test3/timeseries' + str(plotTimeRanges[iTime]) + '.png')
 
 # resample data
 data = data.resample(sampleFrequency)
@@ -1512,10 +1511,9 @@ plot = data.plot()
 plot.set_title('HighPassFilter')
 plot.set_ylabel('Gravitational-wave strain amplitude')
 for iTime in np.arange(0,len(plotTimeRanges)):
-    xmin = blockTime + plotTimeRanges[iTime]* -0.5
-    xmax = blockTime + plotTimeRanges[iTime]* 0.5
-    plot.set_xlim(xmin,xmax)
-    plot.save('/home/scoughlin/public_html/test3/highpass' + str(iTime) + '.png')
+    halfTimeRange = plotTimeRanges[iTime]*0.5
+    plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
+    plot.save('/home/scoughlin/public_html/test3/highpass' + str(plotTimeRanges[iTime]) + '.png')
 
 
 FFT = 2*len(data)/\
@@ -1526,14 +1524,13 @@ plot = data.plot()
 plot.set_title('Whitened')
 plot.set_ylabel('Gravitational-wave strain amplitude')
 for iTime in np.arange(0,len(plotTimeRanges)):
-    xmin = blockTime + plotTimeRanges[iTime]* -0.5
-    xmax = blockTime + plotTimeRanges[iTime]* 0.5
-    plot.set_xlim(xmin,xmax)
-    plot.save('/home/scoughlin/public_html/test3/whitened' + str(iTime) + '.png')
+    halfTimeRange = plotTimeRanges[iTime]*0.5
+    plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
+    plot.save('/home/scoughlin/public_html/test3/whitened' + str(plotTimeRanges[iTime]) + '.png')
 
 # q transform whitened data
 coefficients = [];
-coordinate = [pi/2,0]
+coordinate = [np.pi/2,0]
 whitenedTransform = \
   wtransform(whitenedData, tiling, outlierFactor, 'independent', channelName,coefficients, coordinate);
 
