@@ -914,489 +914,488 @@ def wtransform(data, tiling, outlierFactor, \
 def wmeasure(transforms, tiling, startTime, \
                                  referenceTime, timeRange, frequencyRange, \
                                  qRange, debugLevel):
-# WMEASURE Measure peak and weighted signal properties from Q transforms
-#
-# WMEASURE reports the peak and significance weighted mean properties of Q
-# transformed signals within the specified time-frequency region.
-#
-# usage:
-#
-#   measurements = wmeasure(transforms, tiling, startTime, referenceTime, ...
-#                           timeRange, frequencyRange, qRange, debugLevel);
-#
-#   transforms           cell array of input Q transform structures
-#   tiling               discrete Q transform tiling structure from WTILE
-#   startTime            GPS start time of Q transformed data
-#   referenceTime        reference time for time range to search over
-#   timeRange            vector range of relative times to search over
-#   frequencyRange       vector range of frequencies to search over
-#   qRange               scalar Q or vector range of Qs to search over
-#   debugLevel           verboseness of debug output
-#
-#   measurements         cell array of measured signal properties
-#
-# WMEASURE returns a cell array of measured signal properties, with one cell per
-# channel.  The measured signal properties are returned as a structure that
-# contains the following fields.
-#
-#   peakTime                 center time of peak tile [gps seconds]
-#   peakFrequency            center frequency of peak tile [Hz]
-#   peakQ                    quality factor of peak tile []
-#   peakDuration             duration of peak tile [seconds]
-#   peakBandwidth            bandwidth of peak tile [Hz]
-#   peakNormalizedEnergy     normalized energy of peak tile []
-#   peakAmplitude            amplitude of peak tile [Hz^-1/2]
-#   signalTime               weighted central time [gps seconds]
-#   signalFrequency          weighted central frequency [Hz]
-#   signalDuration           weighted duration [seconds]
-#   signalBandwidth          weighted bandwidth [Hz]
-#   signalNormalizedEnergy   total normalized energy []
-#   signalAmplitude          total signal amplitude [Hz^-1/2]
-#   signalArea               measurement time frequency area []
-#
-# The user can focus on a subset of the times and frequencies available in
-# the transform data by specifying a desired range of central times,
-# central frequencies, and Qs to threshold on.  Ranges should be specified
-# as a two component vector, consisting of a minimum and maximum value.
-# Alternatively, if only a single Q is specified, WMEASURE is only applied to
-# the time-frequency plane which has the nearest value of Q in a
-# logarithmic sense to the requested value.
-#
-# To determine the range of central times to search over, WMEASURE requires
-# the start time of the transformed data in addition to a reference time
-# and a relative time range.  Both the start time and reference time should
-# be specified as absolute quantities, while the range of times to analyze
-# should be specified relative to the requested reference time.
-#
-# By default, WMEASURE is applied to all available frequencies and Qs, and the
-# reference time and relative time range arguments are set to exclude data
-# potentially corrupted by filter transients as identified by the transient
-# duration field of the tiling structure.  The default value can be
-# obtained for any argument by passing the empty matrix [].
-#
-# See also WTILE, WCONDITION, WTRANSFORM, WTHRESHOLD, WSELECT, WEXAMPLE, WSCAN,
-# and WSEARCH.
+    # WMEASURE Measure peak and weighted signal properties from Q transforms
+    #
+    # WMEASURE reports the peak and significance weighted mean properties of Q
+    # transformed signals within the specified time-frequency region.
+    #
+    # usage:
+    #
+    #   measurements = wmeasure(transforms, tiling, startTime, referenceTime, ...
+    #                           timeRange, frequencyRange, qRange, debugLevel);
+    #
+    #   transforms           cell array of input Q transform structures
+    #   tiling               discrete Q transform tiling structure from WTILE
+    #   startTime            GPS start time of Q transformed data
+    #   referenceTime        reference time for time range to search over
+    #   timeRange            vector range of relative times to search over
+    #   frequencyRange       vector range of frequencies to search over
+    #   qRange               scalar Q or vector range of Qs to search over
+    #   debugLevel           verboseness of debug output
+    #
+    #   measurements         cell array of measured signal properties
+    #
+    # WMEASURE returns a cell array of measured signal properties, with one cell per
+    # channel.  The measured signal properties are returned as a structure that
+    # contains the following fields.
+    #
+    #   peakTime                 center time of peak tile [gps seconds]
+    #   peakFrequency            center frequency of peak tile [Hz]
+    #   peakQ                    quality factor of peak tile []
+    #   peakDuration             duration of peak tile [seconds]
+    #   peakBandwidth            bandwidth of peak tile [Hz]
+    #   peakNormalizedEnergy     normalized energy of peak tile []
+    #   peakAmplitude            amplitude of peak tile [Hz^-1/2]
+    #   signalTime               weighted central time [gps seconds]
+    #   signalFrequency          weighted central frequency [Hz]
+    #   signalDuration           weighted duration [seconds]
+    #   signalBandwidth          weighted bandwidth [Hz]
+    #   signalNormalizedEnergy   total normalized energy []
+    #   signalAmplitude          total signal amplitude [Hz^-1/2]
+    #   signalArea               measurement time frequency area []
+    #
+    # The user can focus on a subset of the times and frequencies available in
+    # the transform data by specifying a desired range of central times,
+    # central frequencies, and Qs to threshold on.  Ranges should be specified
+    # as a two component vector, consisting of a minimum and maximum value.
+    # Alternatively, if only a single Q is specified, WMEASURE is only applied to
+    # the time-frequency plane which has the nearest value of Q in a
+    # logarithmic sense to the requested value.
+    #
+    # To determine the range of central times to search over, WMEASURE requires
+    # the start time of the transformed data in addition to a reference time
+    # and a relative time range.  Both the start time and reference time should
+    # be specified as absolute quantities, while the range of times to analyze
+    # should be specified relative to the requested reference time.
+    #
+    # By default, WMEASURE is applied to all available frequencies and Qs, and the
+    # reference time and relative time range arguments are set to exclude data
+    # potentially corrupted by filter transients as identified by the transient
+    # duration field of the tiling structure.  The default value can be
+    # obtained for any argument by passing the empty matrix [].
+    #
+    # See also WTILE, WCONDITION, WTRANSFORM, WTHRESHOLD, WSELECT, WEXAMPLE, WSCAN,
+    # and WSEARCH.
 
-# Notes:
-# 1. Compute absolute or normalized energy weighted signal properties?
-# 2. Only include tiles with Z>Z0 in integrands?
+    # Notes:
+    # 1. Compute absolute or normalized energy weighted signal properties?
+    # 2. Only include tiles with Z>Z0 in integrands?
 
-# Shourov K. Chatterji
-# shourov@ligo.caltech.edu
+    # Shourov K. Chatterji
+    # shourov@ligo.caltech.edu
 
-# $Id: wmeasure.m 1716 2009-04-10 17:00:49Z jrollins $
+    # $Id: wmeasure.m 1716 2009-04-10 17:00:49Z jrollins $
 
-################################################################################
-#                        process command line arguments                        #
-################################################################################
+    ################################################################################
+    #                        process command line arguments                        #
+    ################################################################################
 
-# apply default arguments
-if (nargin < 4) || isempty(referenceTime):
-  referenceTime = startTime + tiling.duration / 2;
+    # apply default arguments
+    if (nargin < 4) || isempty(referenceTime):
+      referenceTime = startTime + tiling.duration / 2;
 
-if (nargin < 5) || isempty(timeRange):
-  timeRange = 0.5 * (tiling.duration - 2 * tiling.transientDuration) * [-1 +1];
+    if (nargin < 5) || isempty(timeRange):
+      timeRange = 0.5 * (tiling.duration - 2 * tiling.transientDuration) * [-1 +1];
 
-if (nargin < 6) || isempty(frequencyRange):
-  frequencyRange = [-Inf +Inf];
+    if (nargin < 6) || isempty(frequencyRange):
+      frequencyRange = [-Inf +Inf];
 
-if (nargin < 7) || isempty(qRange):
-  qRange = [-Inf +Inf];
+    if (nargin < 7) || isempty(qRange):
+      qRange = [-Inf +Inf];
 
-if (nargin < 8) || isempty(debugLevel):
-  debugLevel = 1;
-
-
-# determine number of channels
-numberOfChannels = len(transforms);
-
-# if only a single Q is requested, find nearest Q plane
-if len(qRange) == 1:
-  [ignore, qPlane] = min(abs(np.log(tiling['generalparams']['qs']) / qRange));
-  qRange = tiling['generalparams']['qs'][qPlane] * [1 1];
-
-################################################################################
-#                       validate command line arguments                        #
-################################################################################
-
-# validate tiling structure
-if ~strcmp(tiling.id, 'Discrete Q-transform tile structure'),
-  error('input argument is not a discrete Q transform tiling structure');
-
-# validate transform structures
-for channelNumber = 1 : numberOfChannels:
-  if ~strcmp(transforms{channelNumber}.id, \
-             'Discrete Q-transform transform structure'):
-    error('input argument is not a discrete Q transform structure');
-
-# Check for two component range vectors
-if len(timeRange) != 2:
-  error('Time range must be two component vector [tmin tmax].');
-
-if len(frequencyRange) != 2:
-  error('Frequency range must be two component vector [fmin fmax].');
-
-if len(qRange) > 2:
-  error('Q range must be scalar or two component vector [Qmin Qmax].');
+    if (nargin < 8) || isempty(debugLevel):
+      debugLevel = 1;
 
 
-################################################################################
-#                      initialize measurement structures                       #
-################################################################################
+    # determine number of channels
+    numberOfChannels = len(transforms);
 
-# Initialize measurements cell
-measurements = {}
+    # if only a single Q is requested, find nearest Q plane
+    if len(qRange) == 1:
+      [ignore, qPlane] = min(abs(np.log(tiling['generalparams']['qs']) / qRange));
+      qRange = tiling['generalparams']['qs'][qPlane] * [1 1];
 
-# create empty cell array of measurement structures
-# begin loop over channels
-for channel in np.arange(0,numberOfChannels):
-    channelstr = 'channel' + str(channel)
-    measurements[channelstr] = {}
-    # End loop over channels
+    ################################################################################
+    #                       validate command line arguments                        #
+    ################################################################################
 
-# begin loop over channels
-for channel in np.arange(0,numberOfChannels):
-    channelstr = 'channel' + str(channel)
-    # initialize peak signal properties
-    measurements[channelstr].peakTime = 0;
-    measurements[channelstr].peakFrequency = 0;
-    measurements[channelstr].peakQ = 0;
-    measurements[channelstr].peakDuration = 0;
-    measurements[channelstr].peakBandwidth = 0;
-    measurements[channelstr].peakNormalizedEnergy = 0;
-    measurements[channelstr].peakAmplitude = 0;
+    # validate tiling structure
+    if ~strcmp(tiling.id, 'Discrete Q-transform tile structure'),
+      error('input argument is not a discrete Q transform tiling structure');
 
-    # initialize integrated signal properties
-    measurements[channelstr]['signalTime'] = ...
-      zeros(1, tiling.numberOfPlanes);
-    measurements[channelstr]signalFrequency = ...
-      zeros(1, tiling.numberOfPlanes);
-    measurements[channelstr]signalDuration = ...
-      zeros(1, tiling.numberOfPlanes);
-    measurements[channelstr]signalBandwidth = ...
-      zeros(1, tiling.numberOfPlanes);
-    measurements[channelstr]signalNormalizedEnergy = ...
-      zeros(1, tiling.numberOfPlanes);
-    measurements[channelstr]['signalAmplitude'] = ...
-      zeros(1, tiling.numberOfPlanes);
-    measurements[channelstr]['signalArea'] = ...
-      zeros(1, tiling.numberOfPlanes);
+    # validate transform structures
+    for channelNumber = 1 : numberOfChannels:
+      if ~strcmp(transforms[channelstr]id, \
+                 'Discrete Q-transform transform structure'):
+        error('input argument is not a discrete Q transform structure');
 
-    # end loop over channels
+    # Check for two component range vectors
+    if len(timeRange) != 2:
+      error('Time range must be two component vector [tmin tmax].');
+
+    if len(frequencyRange) != 2:
+      error('Frequency range must be two component vector [fmin fmax].');
+
+    if len(qRange) > 2:
+      error('Q range must be scalar or two component vector [Qmin Qmax].');
 
 
-################################################################################
-#                           begin loop over Q planes                           #
-################################################################################
+    ################################################################################
+    #                      initialize measurement structures                       #
+    ################################################################################
 
-# begin loop over Q planes
-for plane = 1 : tiling.numberOfPlanes,
-  
-  ##############################################################################
-  #                              threshold on Q                                #
-  ##############################################################################
+    # Initialize measurements cell
+    measurements = {}
+    peakPlane = {}
+    numberOfPlanes = tiling['generalparams']['numberOfPlanes']
 
-  # skip Q planes outside of requested Q range
-  if ((tiling.planes{plane}.q < min(qRange)) || ...
-      (tiling.planes{plane}.q > max(qRange))),
-    continue;
-  end
-
-  ##############################################################################
-  #                      begin loop over frequency rows                        #
-  ##############################################################################
-
-  # begin loop over frequency rows
-  for row = 1 : tiling.planes{plane}.numberOfRows,
-
-    ############################################################################
-    #                           calculate times                                #
-    ############################################################################
-
-     times = (0 :  tiling.planes{plane}.rows{row}.numberOfTiles - 1) ...
-             * tiling.planes{plane}.rows{row}.timeStep;
-
-    ############################################################################
-    #                    threshold on central frequency                        #
-    ############################################################################
-
-    # skip frequency rows outside of requested frequency range
-    if ((tiling.planes{plane}.rows{row}.frequency < ...
-         min(frequencyRange)) || ...
-        (tiling.planes{plane}.rows{row}.frequency > ...
-         max(frequencyRange))),
-      continue;
-    end
-
-    ############################################################################
-    #                      threshold on central time                           #
-    ############################################################################
-
-    # skip tiles outside requested time range
-    tileIndices = ...
-        find((times >= ...
-              (referenceTime - startTime + min(timeRange))) & ...
-             (times <= ...
-              (referenceTime - startTime + max(timeRange))));
-
-    ############################################################################
-    #           differential time-frequency area for integration               #
-    ############################################################################
-    
-    # differential time-frequency area for integration
-    differentialArea = tiling.planes{plane}.rows{row}.timeStep * ...
-                       tiling.planes{plane}.rows{row}.frequencyStep;
-
-    ############################################################################
-    #                       begin loop over channels                           #
-    ############################################################################
-    
+    # create empty cell array of measurement structures
     # begin loop over channels
-    for channelNumber = 1 : numberOfChannels,
+    for channel in np.arange(0,numberOfChannels):
+        channelstr = 'channel' + str(channel)
+        measurements[channelstr] = {}
+        # End loop over channels
 
-      ##########################################################################
-      #                   update peak tile properties                          #
-      ##########################################################################
+    # begin loop over channels
+    for channel in np.arange(0,numberOfChannels):
+        channelstr = 'channel' + str(channel)
+        # initialize peak signal properties
+        measurements[channelstr]['peakTime'] = 0;
+        measurements[channelstr]['peakFrequency'] = 0;
+        measurements[channelstr]['peakQ'] = 0;
+        measurements[channelstr]['peakDuration'] = 0;
+        measurements[channelstr]['peakBandwidth']' = 0;
+        measurements[channelstr]['peakNormalizedEnergy'] = 0;
+        measurements[channelstr]['peakAmplitude'] = 0;
+
+        # initialize integrated signal properties
+        measurements[channelstr]['signalTime'] = \
+          np.zeros(numberOfPlanes);
+        measurements[channelstr]['signalFrequency'] = \
+          np.zeros(numberOfPlanes);
+        measurements[channelstr]['signalDuration'] = \
+          np.zeros(numberOfPlanes);
+        measurements[channelstr]['signalBandwidth'] = \
+          np.zeros(numberOfPlanes);
+        measurements[channelstr]['signalNormalizedEnergy'] = \
+          np.zeros(numberOfPlanes);
+        measurements[channelstr]['signalAmplitude'] = \
+          np.zeros(numberOfPlanes);
+        measurements[channelstr]['signalArea'] = \
+          np.zeros(numberOfPlanes);
+
+        # end loop over channels
+
+
+    ################################################################################
+    #                           begin loop over Q planes                           #
+    ################################################################################
+
+    # begin loop over Q planes
+    for plane in np.arange(0,numberOfPlanes):
+        planestr = 'planes' +str(plane)
+        numberOfRows = tiling[planestr]['numberOfRows']
       
-      # vector of row tile normalized energies
-      normalizedEnergies = transforms{channelNumber}.planes{plane}.rows{row} ...
-                           .normalizedEnergies(tileIndices);
+        ##############################################################################
+        #                              threshold on Q                                #
+        ##############################################################################
 
-      # find most significant tile in row
-      [peakNormalizedEnergy, peakIndex] = max(normalizedEnergies);
+        # skip Q planes outside of requested Q range
+        if ((tiling[planestr]['q'] < min(qRange)) or \
+          (tiling[planestr]['q'] > max(qRange))):
+            break;
 
-      # if peak tile is in this row
-      if peakNormalizedEnergy > measurements[channelstr].peakNormalizedEnergy,
+        ##############################################################################
+        #                      begin loop over frequency rows                        #
+        ##############################################################################
 
-        # update plane index of peak tile
-        peakPlane{channelNumber} = plane;
+        # begin loop over frequency rows
+        for row in np.arange(0,numberOfRows):
+            rowstr = 'row' + str(row)
+
+            ############################################################################
+            #                           calculate times                                #
+            ############################################################################
+
+            times = np.arange(0,(tiling[channelstr][planestr][rowstr]['numberOfTiles'] - 1) * \
+                   tiling[channelstr][planestr][rowstr]['timeStep']);
+
+            ############################################################################
+            #                    threshold on central frequency                        #
+            ############################################################################
+
+            # skip frequency rows outside of requested frequency range
+            if ((tiling[planestr][rowstr]['frequency'] < \
+                 min(frequencyRange)) or \
+                (tiling[planestr][rowstr]['frequency'] > \
+                 max(frequencyRange))):
+                    break;
+
+            ############################################################################
+            #                      threshold on central time                           #
+            ############################################################################
         
-        # extract time index of peak tile
-        peakIndex = tileIndices(peakIndex);
-      
-        # update center time of peak tile
-        measurements[channelstr].peakTime = ...
-            times(peakIndex) + startTime;
+            # skip tiles outside requested time range
+            tileIndices = \
+                np.where((times >= \
+                  (referenceTime - startTime + min(timeRange))) and \
+                 (times <= \
+                  (referenceTime - startTime + max(timeRange))));
 
-        # update center frequency of peak tile
-        measurements[channelstr].peakFrequency = ...
-            tiling.planes{plane}.rows{row}.frequency;
+            ############################################################################
+            #           differential time-frequency area for integration               #
+            ############################################################################
+        
+            # differential time-frequency area for integration
+            differentialArea = tiling[planestr][rowstr]['timeStep'] * \
+                           tiling[planestr][rowstr]['frequencyStep'];
 
-        # update q of peak tile
-        measurements[channelstr].peakQ = ...
-            tiling.planes{plane}.q;
+            ############################################################################
+            #                       begin loop over channels                           #
+            ############################################################################
+        
+            # begin loop over channels
+            for channel in np.arange(0,numberOfChannels):
+                channelstr = 'channel' + str(channel)
 
-        # update duration of peak tile
-        measurements[channelstr].peakDuration = tiling.planes{plane}.rows{row}.duration;
-
-        # update bandwidth of peak tile
-        measurements[channelstr].peakBandwidth = tiling.planes{plane}.rows{row}.bandwidth;
+                ##########################################################################
+                #                   update peak tile properties                          #
+                ##########################################################################
           
-        # update normalized energy of peak tile
-        measurements[channelstr].peakNormalizedEnergy = ...
-            (transforms{channelNumber}.planes{plane}.rows{row} ...
-             .normalizedEnergies(peakIndex));
+                # vector of row tile normalized energies
+                normalizedEnergies = transforms[channelstr][planestr][rowstr]\
+                        ['normalizedEnergies'][tileIndices];
 
-        # udpate amplitude of peak tile
-        measurements[channelstr].peakAmplitude = ...
-            sqrt((transforms{channelNumber}.planes{plane}.rows{row} ...
-                  .normalizedEnergies(peakIndex) - 1) * ...
-                 transforms{channelNumber}.planes{plane}.rows{row}.meanEnergy);
+                # find most significant tile in row
+                [peakNormalizedEnergy, peakIndex] = max(normalizedEnergies);
 
-      # end test for peak tile in this row
-      end
+                # if peak tile is in this row
+                if peakNormalizedEnergy > measurements[channelstr]['peakNormalizedEnergy']:
+
+                    # update plane index of peak tile
+                    peakPlane[channelstr] = plane;
+            
+                    # extract time index of peak tile
+                    peakIndex = tileIndices[peakIndex];
+                  
+                    # update center time of peak tile
+                    measurements[channelstr]['peakTime'] = ...
+                        times[peakIndex] + startTime;
+
+                    # update center frequency of peak tile
+                    measurements[channelstr].peakFrequency = ...
+                        tiling.[planestr][rowstr]frequency;
+
+                    # update q of peak tile
+                    measurements[channelstr]['peakQ']= ...
+                        tiling[planestr]['q'];
+
+                    # update duration of peak tile
+                    measurements[channelstr]['peakDuration'] = tiling[planestr][rowstr]['duration'];
+
+                    # update bandwidth of peak tile
+                    measurements[channelstr]['peakBandwidth'] = tiling.[planestr][rowstr]['bandwidth'];
+                      
+                    # update normalized energy of peak tile
+                    measurements[channelstr]['peakNormalizedEnergy'] = \
+                        (transforms[channelstr][planestr][rowstr]\
+                         ['normalizedEnergies'](peakIndex));
+
+                    # udpate amplitude of peak tile
+                    measurements[channelstr]['peakAmplitude'] = \
+                        np.sqrt((transforms[channelstr][planestr][rowstr] \
+                              ['normalizedEnergies'][peakIndex] - 1) * \
+                             transforms[channelstr][planestr][rowstr]['meanEnergy']);
+                            
+                # End If Statement
+          
+                ##########################################################################
+                #                update weighted signal properties                       #
+                ##########################################################################
+
+                # threshold on significance
+                normalizedEnergyThreshold = 4.5;
+                significantIndices = np.where(normalizedEnergies > normalizedEnergyThreshold);
+                normalizedEnergies = normalizedEnergies[significantIndices];
+                significantIndices = tileIndices[significantIndices];
+
+                # vector of row tile calibrated energies
+                calibratedEnergies = (normalizedEnergies - 1) * \
+                    transforms[channelstr][planestr][rowstr]['meanEnergy'] * \
+                        tiling[planestr]['normalization'];
+
+                # sum of normalized tile energies in row
+                sumNormalizedEnergies = sum(normalizedEnergies);
+
+                # sum of calibrated tile enregies in row
+                sumCalibratedEnergies = sum(calibratedEnergies);
+          
+                # update weighted central time integral
+                measurements[channelstr]['signalTime'][plane] = \
+                    measurements[channelstr]['signalTime'][plane] + \
+                        sum(times[significantIndices] * \
+                            calibratedEnergies) * \
+                            differentialArea;
+
+                # update weighted central frequency integral
+                measurements[channelstr]['signalFrequency'][plane] = \
+                    measurements[channelstr]['signalFrequency'][plane] + \
+                        tiling[planestr][rowstr]['frequency'] * \
+                            sumCalibratedEnergies * \
+                                differentialArea;
+
+                # update weighted duration integral
+                measurements[channelstr]['signalDuration'][plane] = \
+                    measurements[channelstr]['signalDuration'][plane] + \
+                            sum(times[significantIndices]**2 * \
+                                calibratedEnergies) * \
+                                differentialArea;
+
+                # update weighted bandwidth integral
+                measurements[channelstr]['signalBandwidth'][plane] = \
+                    measurements[channelstr]['signalBandwidth'][plane] + \
+                        tiling[planestr][rowstr]['frequency']**2 * \
+                            sumCalibratedEnergies * ...
+                                differentialArea;
+
+                # update total normalized energy integral
+                measurements[channelstr]['signalNormalizedEnergy'][plane] = \
+                    measurements[channelstr]['signalNormalizedEnergy'][plane] + \
+                        sumNormalizedEnergies * \
+                            differentialArea;
+
+                # update total calibrated energy integral
+                measurements[channelstr]['signalAmplitude'][plane] = \
+                    measurements[channelstr]['signalAmplitude'][plane] + \
+                        sumCalibratedEnergies * \
+                            differentialArea;
+
+                # update total signal area integral
+                measurements[channelstr]['signalArea'][plane] = \
+                    measurements[channelstr]['signalArea'][plane] + \
+                        len(normalizedEnergies) * \
+                            differentialArea;
+          
+            ############################################################################
+            #                        end loop over channels                            #
+            ############################################################################
+
+
+        ##############################################################################
+        #                       end loop over frequency rows                         #
+        ##############################################################################
+        
+
+        ##############################################################################
+        #                       normalize signal properties                          #
+        ##############################################################################
       
-      ##########################################################################
-      #                update weighted signal properties                       #
-      ##########################################################################
+        # begin loop over channels
+        for channel in np.arange(0,numberOfChannels):
 
-      # threshold on significance
-      normalizedEnergyThreshold = 4.5;
-      significantIndices = find(normalizedEnergies > normalizedEnergyThreshold);
-      normalizedEnergies = normalizedEnergies(significantIndices);
-      significantIndices = tileIndices(significantIndices);
+            # normalize weighted signal properties by total normalized energy
+            if measurements[channelstr]['signalAmplitude'][plane] != 0:
+                
+              measurements[channelstr]['signalTime'][plane] = \
+                  measurements[channelstr]['signalTime'][plane] / \
+                  measurements[channelstr]['signalAmplitude'][plane];
+              
+              measurements[channelstr]['signalFrequency'][plane] = \
+                  measurements[channelstr]['signalFrequency'][plane] / \
+                  measurements[channelstr]['signalAmplitude'][plane];
+              
+              measurements[channelstr]['signalDuration'][plane] = \
+                  measurements[channelstr]['signalDuration'][plane] / \
+                  measurements[channelstr]['signalAmplitude'][plane];
+              
+              measurements[channelstr]['signalBandwidth'][plane] = \
+                  measurements[channelstr]['signalBandwidth'][plane] / \
+                  measurements[channelstr]['signalAmplitude'][plane];
+            # End If Statement
 
-      # vector of row tile calibrated energies
-      calibratedEnergies = (normalizedEnergies - 1) * ...
-          transforms{channelNumber}.planes{plane}.rows{row}.meanEnergy * ...
-          tiling.planes{plane}.normalization;
+            # duration and bandwidth are second central moments in time and frequency
+            measurements[channelstr]['signalDuration'][plane] = \
+                np.sqrt(measurements[channelstr]['signalDuration'][plane] - \
+                     measurements[channelstr]['signalTime'][plane]**2);
+            measurements[channelstr]['signalBandwidth'][plane] = \
+                sqrt(measurements[channelstr]['signalBandwidth'][plane] - \
+                     measurements[channelstr]['signalTime'][plane]**2);
 
-      # sum of normalized tile energies in row
-      sumNormalizedEnergies = sum(normalizedEnergies);
+            # convert signal energy to signal amplitude
+            measurements[channelstr]['signalAmplitude'][plane] = \
+                np.sqrt(measurements[channelstr]['signalAmplitude'][plane]);
 
-      # sum of calibrated tile enregies in row
-      sumCalibratedEnergies = sum(calibratedEnergies);
+            # add start time to measured central time
+            measurements[channelstr]['signalTime'](plane) = ...
+                np.measurements[channelstr]['signalTime'](plane) + startTime;
+
+        # end loop over channels
+
       
-      # update weighted central time integral
-      measurements[channelstr].signalTime(plane) = ...
-          measurements[channelstr].signalTime(plane) + ...
-          sum(times(significantIndices) .* ...
-              calibratedEnergies) * ...
-          differentialArea;
+    ################################################################################
+    #                            end loop over Q planes                            #
+    ################################################################################
 
-      # update weighted central frequency integral
-      measurements[channelstr].signalFrequency(plane) = ...
-          measurements[channelstr].signalFrequency(plane) + ...
-          tiling.planes{plane}.rows{row}.frequency * ...
-          sumCalibratedEnergies * ...
-          differentialArea;
+    ################################################################################
+    #          report signal properties from plane with peak significance          #
+    ################################################################################
 
-      # update weighted duration integral
-      measurements[channelstr].signalDuration(plane) = ...
-          measurements[channelstr].signalDuration(plane) + ...
-          sum(times(significantIndices).^2 .* ...
-              calibratedEnergies) * ...
-          differentialArea;
+    for channel in np.arange(0,numberOfChannels):
+        channelstr = 'channel' + str(channel)
 
-      # update weighted bandwidth integral
-      measurements[channelstr].signalBandwidth(plane) = ...
-          measurements[channelstr].signalBandwidth(plane) + ...
-          tiling.planes{plane}.rows{row}.frequency^2 * ...
-          sumCalibratedEnergies * ...
-          differentialArea;
+        # weighted central time estimate from plane with peak tile significance
+        measurements[channelstr]['signalTime'] = \
+            measurements[channelstr]['signalTime'][peakPlane[channelstr]];
 
-      # update total normalized energy integral
-      measurements[channelstr].signalNormalizedEnergy(plane) = ...
-          measurements[channelstr].signalNormalizedEnergy(plane) + ...
-          sumNormalizedEnergies * ...
-          differentialArea;
+        # weighted central frequency estimate from plane with peak tile significance
+        measurements[channelstr]['signalFrequency'] = \
+            measurements[channelstr]['signalFrequency'][peakPlane[channelstr]];
 
-      # update total calibrated energy integral
-      measurements[channelstr].signalAmplitude(plane) = ...
-          measurements[channelstr].signalAmplitude(plane) + ...
-          sumCalibratedEnergies * ...
-          differentialArea;
+        # weighted duration estimate from plane with peak tile significance
+        measurements[channelstr]['signalDuration'] = \
+            measurements[channelstr]['signalDuration'][peakPlane[channelstr]];
 
-      # update total signal area integral
-      measurements[channelstr].signalArea(plane) = ...
-          measurements[channelstr].signalArea(plane) + ...
-          length(normalizedEnergies) * ...
-          differentialArea;
-      
-    ############################################################################
-    #                        end loop over channels                            #
-    ############################################################################
+        # weighted bandwidth estimate from plane with peak tile significance
+        measurements[channelstr]['signalBandwidth'] = \
+            measurements[channelstr]['signalBandwidth'][peakPlane[channelstr]];
+
+        # total signal normalized energy estimate from plane with peak tile significance
+        measurements[channelstr]['signalNormalizedEnergy'] = \
+            measurements[channelstr]['signalNormalizedEnergy'][peakPlane[channelstr]];
+
+        # total signal amplitude estimate from plane with peak tile significance
+        measurements[channelstr]['signalAmplitude'] = \
+            measurements[channelstr]['signalAmplitude'][peakPlane[channelstr]];
+
+        # measured time frequency area in plane with peak tile significance
+        measurements[channelstr]['signalArea'] = \
+            measurements[channelstr]['signalArea'][peakPlane[channelstr]];
+
+        # report peak tile properties for very weak signals
+        if measurements[channelstr]['signalArea'] < 1,
+            measurements[channelstr]['signalTime'] = \
+                measurements[channelstr]['peakTime'];
+            measurements[channelstr]['signalFrequency'] = \
+                measurements[channelstr]['peakFrequency'];
+            measurements[channelstr]['signalDuration'] = \
+                measurements[channelstr]['peakDuration'];
+            measurements[channelstr]['signalBandwidth'] = \
+                measurements[channelstr]['peakBandwidth'];
+            measurements[channelstr]['signalNormalizedEnergy'] = \
+                measurements[channelstr]['peakNormalizedEnergy'];
+            measurements[channelstr]['signalAmplitude'] = \
+                measurements[channelstr]['peakAmplitude'];
+            measurements[channelstr]['signalArea'] = 1;
+
+        # End If statment
 
     # end loop over channels
-    end
 
-  ##############################################################################
-  #                       end loop over frequency rows                         #
-  ##############################################################################
+    ################################################################################
+    #                 return most significant tile properties                      #
+    ################################################################################
 
-  # end loop over frequency rows
-  end
-
-  ##############################################################################
-  #                       normalize signal properties                          #
-  ##############################################################################
-  
-  # begin loop over channels
-  for channelNumber = 1 : numberOfChannels,
-
-    # normalize weighted signal properties by total normalized energy
-    if measurements[channelstr].signalAmplitude(plane) ~= 0,
-      measurements[channelstr].signalTime(plane) = ...
-          measurements[channelstr].signalTime(plane) ./ ...
-          measurements[channelstr].signalAmplitude(plane);
-      measurements[channelstr].signalFrequency(plane) = ...
-          measurements[channelstr].signalFrequency(plane) ./ ...
-          measurements[channelstr].signalAmplitude(plane);
-      measurements[channelstr].signalDuration(plane) = ...
-          measurements[channelstr].signalDuration(plane) ./ ...
-          measurements[channelstr].signalAmplitude(plane);
-      measurements[channelstr].signalBandwidth(plane) = ...
-          measurements[channelstr].signalBandwidth(plane) ./ ...
-          measurements[channelstr].signalAmplitude(plane);
-    end
-
-    # duration and bandwidth are second central moments in time and frequency
-    measurements[channelstr].signalDuration(plane) = ...
-        sqrt(measurements[channelstr].signalDuration(plane) - ...
-             measurements[channelstr].signalTime(plane).^2);
-    measurements[channelstr].signalBandwidth(plane) = ...
-        sqrt(measurements[channelstr].signalBandwidth(plane) - ...
-             measurements[channelstr].signalTime(plane).^2);
-
-    # convert signal energy to signal amplitude
-    measurements[channelstr].signalAmplitude(plane) = ...
-        sqrt(measurements[channelstr].signalAmplitude(plane));
-
-    # add start time to measured central time
-    measurements[channelstr].signalTime(plane) = ...
-        measurements[channelstr].signalTime(plane) + startTime;
-
-  # end loop over channels
-  end
-  
-################################################################################
-#                            end loop over Q planes                            #
-################################################################################
-
-# end loop over Q planes
-end
-
-################################################################################
-#          report signal properties from plane with peak significance          #
-################################################################################
-
-# begin loop over channels
-for channelNumber = 1 : numberOfChannels,
-
-  # weighted central time estimate from plane with peak tile significance
-  measurements[channelstr].signalTime = ...
-      measurements[channelstr].signalTime(peakPlane{channelNumber});
-
-  # weighted central frequency estimate from plane with peak tile significance
-  measurements[channelstr].signalFrequency = ...
-      measurements[channelstr].signalFrequency(peakPlane{channelNumber});
-
-  # weighted duration estimate from plane with peak tile significance
-  measurements[channelstr].signalDuration = ...
-      measurements[channelstr].signalDuration(peakPlane{channelNumber});
-
-  # weighted bandwidth estimate from plane with peak tile significance
-  measurements[channelstr].signalBandwidth = ...
-      measurements[channelstr].signalBandwidth(peakPlane{channelNumber});
-
-  # total signal normalized energy estimate from plane with peak tile significance
-  measurements[channelstr].signalNormalizedEnergy = ...
-      measurements[channelstr].signalNormalizedEnergy(peakPlane{channelNumber});
-
-  # total signal amplitude estimate from plane with peak tile significance
-  measurements[channelstr].signalAmplitude = ...
-      measurements[channelstr].signalAmplitude(peakPlane{channelNumber});
-
-  # measured time frequency area in plane with peak tile significance
-  measurements[channelstr].signalArea = ...
-      measurements[channelstr].signalArea(peakPlane{channelNumber});
-
-  # report peak tile properties for very weak signals
-  if measurements[channelstr].signalArea < 1,
-    measurements[channelstr].signalTime = ...
-        measurements[channelstr].peakTime;
-    measurements[channelstr].signalFrequency = ...
-        measurements[channelstr].peakFrequency;
-    measurements[channelstr].signalDuration = ...
-        measurements[channelstr].peakDuration;
-    measurements[channelstr].signalBandwidth = ...
-        measurements[channelstr].peakBandwidth;
-    measurements[channelstr].signalNormalizedEnergy = ...
-        measurements[channelstr].peakNormalizedEnergy;
-    measurements[channelstr].signalAmplitude = ...
-        measurements[channelstr].peakAmplitude;
-    measurements[channelstr].signalArea = 1;
-  end
-
-# end loop over channels
-end
-
-################################################################################
-#                 return most significant tile properties                      #
-################################################################################
-
-# return to calling function
-return measurements
+    return measurements
 
 ###############################################################################
 ##########################                     ################################
