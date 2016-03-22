@@ -573,13 +573,12 @@ def medianmeanaveragespectrum(data,fs,N,w):
     # ---- Compute median-based PSD over each set of segments.
     if (Ns_even > 0):
         # ---- Compute median-based PSD over each set of segments.
-        S_odd = median(S(:,oddSegs),2) / medianbiasfactor(Ns_odd);
-        S_even = median(S(:,evenSegs),2) / medianbiasfactor(Ns_even);
+        S_odd = median(S[oddSegs],2) / medianbiasfactor(Ns_odd);
+        S_even = median(S[evenSegs],2) / medianbiasfactor(Ns_even);
         # ---- Take weighted average of the two median estimates.
         S = (Ns_odd*S_odd + Ns_even*S_even) / (Ns_odd + Ns_even);
-    else:
-        # ---- Have only 1 segment.  No averaging to be done!
-    ;
+    # End If statement
+
     # ---- Normalize to physical units.
     S = 2/(N*fs)*S;
 
@@ -986,24 +985,25 @@ def wmeasure(transforms, tiling, startTime, \
 
     # $Id: wmeasure.m 1716 2009-04-10 17:00:49Z jrollins $
 
-    ################################################################################
-    #                        process command line arguments                        #
-    ################################################################################
+    ###########################################################################
+    #                   process command line arguments                        #
+    ###########################################################################
 
     # apply default arguments
-    if (nargin < 4) || isempty(referenceTime):
+    if not referenceTime:
       referenceTime = startTime + tiling.duration / 2;
 
-    if (nargin < 5) || isempty(timeRange):
-      timeRange = 0.5 * (tiling.duration - 2 * tiling.transientDuration) * [-1 +1];
+    if not timeRange:
+      timeRange = 0.5 * \
+	(tiling.duration - 2 * tiling.transientDuration) * [-1 +1];
 
-    if (nargin < 6) || isempty(frequencyRange):
-      frequencyRange = [-Inf +Inf];
+    if not frequencyRange:
+      frequencyRange = [float('-Inf'),float('Inf')];
 
-    if (nargin < 7) || isempty(qRange):
-      qRange = [-Inf +Inf];
+    if not qRange:
+      qRange = [float('-Inf'),float('Inf')];
 
-    if (nargin < 8) || isempty(debugLevel):
+    if not debugLevel:
       debugLevel = 1;
 
 
@@ -1014,21 +1014,11 @@ def wmeasure(transforms, tiling, startTime, \
     if len(qRange) == 1:
       [ignore, qPlane] = min(abs(np.log(tiling['generalparams']['qs']) / \
                                  qRange));
-      qRange = tiling['generalparams']['qs'][qPlane] * [1 1];
+      qRange = tiling['generalparams']['qs'][qPlane] * [1,1];
 
     ##########################################################################
     #                    validate command line arguments                     #
     ##########################################################################
-
-    # validate tiling structure
-    if ~strcmp(tiling.id, 'Discrete Q-transform tile structure'),
-      error('input argument is not a discrete Q transform tiling structure');
-
-    # validate transform structures
-    for channelNumber = 1 : numberOfChannels:
-      if ~strcmp(transforms[channelstr]id, \
-                 'Discrete Q-transform transform structure'):
-        error('input argument is not a discrete Q transform structure');
 
     # Check for two component range vectors
     if len(timeRange) != 2:
@@ -1185,8 +1175,8 @@ def wmeasure(transforms, tiling, startTime, \
                         times[peakIndex] + startTime;
 
                     # update center frequency of peak tile
-                    measurements[channelstr].peakFrequency = \
-                        tiling.[planestr][rowstr]frequency;
+                    measurements[channelstr]['peakFrequency'] = \
+                        tiling[planestr][rowstr]['frequency'];
 
                     # update q of peak tile
                     measurements[channelstr]['peakQ']= \
@@ -1198,12 +1188,12 @@ def wmeasure(transforms, tiling, startTime, \
 
                     # update bandwidth of peak tile
                     measurements[channelstr]['peakBandwidth'] = \
-                                tiling.[planestr][rowstr]['bandwidth'];
+                                tiling[planestr][rowstr]['bandwidth'];
                       
                     # update normalized energy of peak tile
                     measurements[channelstr]['peakNormalizedEnergy'] = \
                         (transforms[channelstr][planestr][rowstr]\
-                         ['normalizedEnergies'](peakIndex));
+                         ['normalizedEnergies'][peakIndex]);
 
                     # udpate amplitude of peak tile
                     measurements[channelstr]['peakAmplitude'] = \
@@ -1260,7 +1250,7 @@ def wmeasure(transforms, tiling, startTime, \
                 measurements[channelstr]['signalBandwidth'][plane] = \
                     measurements[channelstr]['signalBandwidth'][plane] + \
                         tiling[planestr][rowstr]['frequency']**2 * \
-                            sumCalibratedEnergies * ...
+                            sumCalibratedEnergies * \
                                 differentialArea;
 
                 # update total normalized energy integral
@@ -1333,8 +1323,8 @@ def wmeasure(transforms, tiling, startTime, \
                 np.sqrt(measurements[channelstr]['signalAmplitude'][plane]);
 
             # add start time to measured central time
-            measurements[channelstr]['signalTime'](plane) = \
-                np.measurements[channelstr]['signalTime'](plane) + startTime;
+            measurements[channelstr]['signalTime'][plane] = \
+                np.measurements[channelstr]['signalTime'][plane] + startTime;
 
         # end loop over channels
 
@@ -1379,7 +1369,7 @@ def wmeasure(transforms, tiling, startTime, \
             measurements[channelstr]['signalArea'][peakPlane[channelstr]];
 
         # report peak tile properties for very weak signals
-        if measurements[channelstr]['signalArea'] < 1,
+        if measurements[channelstr]['signalArea'] < 1:
             measurements[channelstr]['signalTime'] = \
                 measurements[channelstr]['peakTime'];
             measurements[channelstr]['signalFrequency'] = \
