@@ -608,11 +608,11 @@ def highpassfilt(data,tiling):
 	filterOrder = 12;
 
 	# design high pass filter
-	hpfSOS = \
+	[hpfZeros, hpfPoles, hpfGain] = \
 	scipy.signal.butter(filterOrder, tiling['generalparams']['highPassCutoff'] \
-	/ nyquistFrequency, btype='high',output='sos');
+	/ nyquistFrequency, btype='high',output='zpk');
 
-	data = data.filter(hpfSOS)
+	data = data.zpk(hpfZeros,hpfPoles,hpfGain)
 
     # End if statement
     # supress high pass filter transients
@@ -638,12 +638,13 @@ def wtransform(data, tiling, outlierFactor, \
                analysisMode, channelNames, coefficients, coordinate):
 
     # determine number of channels
-    numberOfChannels = length(data);
+    numberOfChannels = 1;
 
     # determine required data lengths
     dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
     halfDataLength = dataLength / 2 + 1;
 
+    print(halfDataLength)
     # validate data length and force row vectors
     if len(data) != halfDataLength:
 	sys.exit()
@@ -1471,7 +1472,7 @@ else:
 centerTime = np.floor(opts.eventTime) + \
            np.round((opts.eventTime - np.floor(opts.eventTime)) * \
                  sampleFrequency) / sampleFrequency;
-print centerTime
+
 # determine segment start and stop times
 startTime = round(centerTime - blockTime / 2);
 stopTime = startTime + blockTime;
@@ -1493,7 +1494,7 @@ for iTime in np.arange(0,len(plotTimeRanges)):
 
 # resample data
 data = data.resample(sampleFrequency)
- 
+print data 
 # generate search tiling
 highPassCutoff = [];
 lowPassCutoff = [];
@@ -1515,10 +1516,29 @@ for iTime in np.arange(0,len(plotTimeRanges)):
     plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
     plot.save('/home/scoughlin/public_html/test3/highpass' + str(plotTimeRanges[iTime]) + '.png')
 
+# Time to whiten the times series data
+# Desired FFT length [samples].  Must be a power of 2.
+#N = tiling['generalparams']['sampleFrequency']*tiling['generalparams']['whiteningDuration']
+# Create hann window
+#w = np.hanning(N)
+# ---- Enforce unity RMS on the window.
+#w = w/np.mean(w**2)**0.5;
 
-FFT = 2*len(data)/\
-(tiling['generalparams']['sampleFrequency']*tiling['generalparams']['whiteningDuration'])-1
-data = data.whiten(FFT, overlap=0.5, method='welch', window='hanning', detrend='constant')
+# ---- Number of segments (FFTs).
+#numSegments = (2*len(data)/N)-1
+#print numSegments
+
+#FFTlength = tiling['generalparams']['duration']/((numSegments+1)/2)
+#print FFTlength
+
+FFTlength =tiling['generalparams']['whiteningDuration']
+#data = data.whiten(1, overlap=0.5, method='median-mean',window=w, detrend='constant')
+print data
+asd1 = data.asd(FFTlength, overlap=0.5, method='median-mean')
+print asd1
+print data
+data = data.whiten(FFTlength, overlap=0.5, asd=asd1)
+print(len(data.value))
 
 plot = data.plot()
 plot.set_title('Whitened')
@@ -1532,8 +1552,9 @@ for iTime in np.arange(0,len(plotTimeRanges)):
 coefficients = [];
 coordinate = [np.pi/2,0]
 whitenedTransform = \
-  wtransform(whitenedData, tiling, outlierFactor, 'independent', channelName,coefficients, coordinate);
+  wtransform(data, tiling, outlierFactor, 'independent', channelName,coefficients, coordinate);
 
+print whitenedTransform
 # identify most significant whitened transform tile
 wlog(debugLevel, 2, '  measuring peak significance...\n');
 thresholdReferenceTime = centerTime;
@@ -1549,6 +1570,7 @@ whitenedProperties = \
 mostSignificantQ = \
       whitenedProperties['peakQ'];
 
+print mostSignificantQ
 ############################################################################
 #                      plot whitened spectrogram                           #
 ############################################################################
