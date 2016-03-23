@@ -740,8 +740,8 @@ def wtransform(data, tiling, outlierFactor, \
                 channelstr = 'channel' + str(channel)
                 windowedData[channelstr] ={}
                 # extract and window in-band data
-                windowedData[channelstr] = tiling[channelstr][planestr][rowstr]['window'] * \
-                data[tiling[channelstr][planestr][rowstr]['dataIndices']];
+                windowedData[channelstr] = tiling[planestr][rowstr]['window'] * \
+                data[tiling[planestr][rowstr]['dataIndices']];
 
                 # zero pad windowed data
                 windowedData[channelstr] = np.pad(windowedData[intChannelstr],\
@@ -787,8 +787,8 @@ def wtransform(data, tiling, outlierFactor, \
             #        exclude outliers and filter transients from statistics    #
             ####################################################################
 
-    	    times = np.arange(0,(tiling[channelstr][planestr][rowstr]['numberOfTiles'] - 1) * \
-            	tiling[channelstr][planestr][rowstr]['timeStep']);
+    	    times = np.arange(0,(tiling[planestr][rowstr]['numberOfTiles'] - 1) * \
+            	tiling[planestr][rowstr]['timeStep']);
 
             # begin loop over channels
     	    for channel in np.arange(0,numberOfChannels):
@@ -1109,8 +1109,8 @@ def wmeasure(transforms, tiling, startTime, \
             #                  calculate times                                #
             ###################################################################
 
-            times = np.arange(0,(tiling[channelstr][planestr][rowstr]['numberOfTiles'] - 1) * \
-                   tiling[channelstr][planestr][rowstr]['timeStep']);
+            times = np.arange(0,(tiling[planestr][rowstr]['numberOfTiles'] - 1) * \
+                   tiling[planestr][rowstr]['timeStep']);
 
             ###################################################################
             #           threshold on central frequency                        #
