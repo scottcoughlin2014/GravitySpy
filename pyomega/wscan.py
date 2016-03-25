@@ -1543,8 +1543,18 @@ halfDataLength = int(dataLength / 2 + 1);
 #data = data[:halfDataLength]
 
 # Apply condition to the data
-data = data.whiten(FFTlength, FFTlength/2., asd=asd)
-plot = data.plot()
+#data = data.whiten(FFTlength, FFTlength/2., asd=asd)
+###########
+def whiten(data, asd):
+    freq_data = data.fft()
+    assert asd.df == freq_data.df
+    freq_data /= asd
+    # FIXME: No ifft method on the frequency data
+    return freq_data.ifft()
+white_data = whiten(data, asd)
+#############
+
+plot = white_data.plot()
 plot.set_title('Whitened')
 plot.set_ylabel('Gravitational-wave strain amplitude')
 for iTime in np.arange(0,len(plotTimeRanges)):
@@ -1553,8 +1563,8 @@ for iTime in np.arange(0,len(plotTimeRanges)):
     plot.save('/home/scoughlin/public_html/test3/whitened' + str(plotTimeRanges[iTime]) + '.png')
 
 # Extract one-sided frequency-domain condiitoned data.
-data = data[:halfDataLength]
-print data.size
+white_data = white_data[:halfDataLength]
+print white_data.size
 
 # Extract one-sided frequency-domain condiitoned data.
 
@@ -1562,7 +1572,7 @@ print data.size
 coefficients = [];
 coordinate = [np.pi/2,0]
 whitenedTransform = \
-  wtransform(data, tiling, outlierFactor, 'independent', channelName,coefficients, coordinate);
+  wtransform(white_data, tiling, outlierFactor, 'independent', channelName,coefficients, coordinate);
 
 # identify most significant whitened transform tile
 wlog(debugLevel, 2, '  measuring peak significance...\n');
