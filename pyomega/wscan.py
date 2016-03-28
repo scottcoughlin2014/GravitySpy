@@ -24,7 +24,7 @@ def parse_commandline():
     parser = optparse.OptionParser()
     parser.add_option("--inifile", help="Name of ini file of params")
     parser.add_option("--eventTime", type=float,help="Trigger time of the glitch")
-    parser.add_option("--uniqueID", type=float,help="Trigger time of the glitch")
+    parser.add_option("--uniqueID", type=float,help="Unique ID of the glitch (from Gravity Spy project)")
     parser.add_option("--outDir", help="Outdir of omega scan and omega scan webpage (i.e. you html directory)")
     parser.add_option("--NSDF", action="store_true", default=False,help="No framecache file available want to use NSDF server")
     opts, args = parser.parse_args()
@@ -64,10 +64,11 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     #                          compute derived parameters                     #
     ###########################################################################
 
-    # nyquist frequency
+    # nyquist frequency (half the sampling rate)
     nyquistFrequency = sampleFrequency / 2;
 
     # maximum mismatch between neighboring tiles
+'''why is this the formula for max mismatch'''
     mismatchStep = 2 * np.sqrt(searchMaximumEnergyLoss / 3);
 
     # maximum possible time resolution
@@ -76,7 +77,8 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     # maximum possible frequency resolution
     minimumFrequencyStep = 1 / blockTime;
 
-    # conversion factor from Q prime to true Q
+    # conversion factor from Q' to true Q
+'''why sqrt(11)'''
     qPrimeToQ = np.sqrt(11);
 
     # total number of samples in input data
@@ -86,7 +88,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     #                       determine parameter constraints                    #
     ############################################################################
 
-    # minimum allowable Q prime to prevent window aliasing at zero frequency
+    # minimum allowable Q' to prevent window aliasing at zero frequency
     minimumAllowableQPrime = 1.0;
 
     # minimum allowable Q to avoid window aliasing at zero frequency
@@ -142,7 +144,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     # number of Q planes
     numberOfPlanes = np.ceil(qCumulativeMismatch / mismatchStep);
 
-    # insure at least one plane
+    # ensure at least one plane
     if numberOfPlanes == 0:
 	numberOfPlanes = 1
 
@@ -206,10 +208,10 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
         #                 determine plane properties                          #
         #######################################################################
 
-        # find Q prime for the plane
+        # find Q' for the plane
         qPrime = q / qPrimeToQ;
 
-        # for large qPrime
+        # for large Q'
   	if qPrime > 10:
 
             # use asymptotic value of planeNormalization
@@ -256,7 +258,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
         # number of frequency rows
         numberOfRows = np.ceil(frequencyCumulativeMismatch / mismatchStep);
 
-        # insure at least one row
+        # ensure at least one row
         if numberOfRows == 0:
             numberOfRows = 1
 
@@ -388,6 +390,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     	    windowArgument = windowFrequencies * qPrime / frequency;
 
     	    # bi square window function
+'''what?'''
      	    window = (1 - windowArgument**2)**2;
 
             # row normalization factor
@@ -426,7 +429,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     	    # insert window vector into frequency row structure
     	    tiling[planestr][rowstr]['window'] = window;
 
-    	    # insert window vector into frequency row structure
+    	    # insert zero pad length into frequency row structure
     	    tiling[planestr][rowstr]['zeroPadLength'] = zeroPadLength;
 
     	    # insert data index vector into frequency row structure
@@ -476,6 +479,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
         ########################################################################
         #                        end loop over Q planes                        #
         ########################################################################
+
     ########################################################################
     #                 determine filter properties                          #
     ########################################################################
@@ -586,7 +590,7 @@ def medianmeanaveragespectrum(data,fs,N,w):
 
 ###############################################################################
 #####################                                  ########################
-#####################           highpassfilt           ########################
+#####################           highpassfilter         ########################
 #####################                                  ########################
 ###############################################################################
 
@@ -628,6 +632,7 @@ def highpassfilt(data,tiling):
 ###############################################################################
 def makePSD(data,tiling):
     return
+
 ###############################################################################
 #####################                                  ########################
 #####################           wtransform             ########################
@@ -660,12 +665,12 @@ def wtransform(data, tiling, outlierFactor, \
 
     outputChannelNames = channelNames;
     numberOfPlanes = tiling['generalparams']['numberOfPlanes']
+
     #######################################################################
     #             initialize Q transform structures                       #
     #######################################################################
 
     # create empty cell array of Q transform structures
-
     transforms = {};
 
     # begin loop over channels
@@ -723,6 +728,7 @@ def wtransform(data, tiling, outlierFactor, \
 
         # begin loop over frequency rows
         for row in np.arange(0,tiling[planestr]['numberOfRows']):
+
             ####################################################################
     	    #          extract and window frequency domain data                #
             ####################################################################
@@ -773,6 +779,7 @@ def wtransform(data, tiling, outlierFactor, \
             ##################################################################
             #              energies directly or indirectly                   #
             ##################################################################
+
             # compute energies directly from intermediate data
             for channel in np.arange(0,numberOfChannels):
                 channelstr = 'channel' + str(channel)
@@ -1311,7 +1318,7 @@ def wmeasure(transforms, tiling, startTime, \
 
             # duration and bandwidth are second central
             # moments in time and frequency
-            
+'''Not sure what this means...'''            
             measurements[channelstr]['signalDuration'][plane] = \
                 np.sqrt(measurements[channelstr]['signalDuration'][plane] - \
                      measurements[channelstr]['signalTime'][plane]**2);
@@ -1408,6 +1415,7 @@ opts = parse_commandline()
 ################################################################################
 #                                   Parse Ini File                             #
 ################################################################################
+
 # ---- Create configuration-file-parser object and read parameters file.
 cp = ConfigParser.ConfigParser()
 cp.read(opts.inifile)
@@ -1430,6 +1438,7 @@ channelName		= cp.get('channels','channelName')
 #                            hard coded parameters                             #
 ################################################################################
 
+'''describe these...'''
 # search parameters
 transientFactor = 2;
 outlierFactor = 2.0;
@@ -1456,9 +1465,10 @@ print('outputDirectory:  {0}'.format(outDir));
 system_call = 'mkdir -p {0}'.format(outDir)
 os.system(system_call)
 
-################################################################################
-#     Determine if this is a normal omega scan or a Gravityspy omega scan      #
-################################################################################
+###############################################################################################
+#     Determine if this is a normal omega scan or a Gravityspy omega scan with unique ID      #
+###############################################################################################
+
 if opts.uniqueID is None:
 	IDstring = opts.eventTime
 else:
@@ -1507,7 +1517,7 @@ tiling = wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 #whitenedData = wcondition(rawData, tiling);
 #data = data.highpass(tiling['generalparams']['highPassCutoff'])
 data = highpassfilt(data,tiling)
-# Plot HighPass Filtered Time  Series at given plot durations
+# Plot HighPass Filtered Time Series at given plot durations
 plot = data.plot()
 plot.set_title('HighPassFilter')
 plot.set_ylabel('Gravitational-wave strain amplitude')
@@ -1519,16 +1529,16 @@ for iTime in np.arange(0,len(plotTimeRanges)):
 # Time to whiten the times series data
 # Desired FFT length [samples].  Must be a power of 2.
 #N = tiling['generalparams']['sampleFrequency']*tiling['generalparams']['whiteningDuration']
-
 # Create hann window
 #w = np.hanning(N);
 # ---- Enforce unity RMS on the window.
 #w = w/np.mean(w**2)**0.5;
 
-# Our FFTlength is determined by the pre determined whitening duration found in wtile
+# Our FFTlength is determined by the predetermined whitening duration found in wtile
 FFTlength = tiling['generalparams']['whiteningDuration']
 
-# We will condition our data using the median-mean approach. This means we will take two set of non overlaping data from our time series and find the median S for both and than average them in order to be both safe against outliers but less bias. By default this ASD is one-sided.
+# We will condition our data using the median-mean approach. This means we will take two sets of non overlaping data from our time series and find the median S for both and then average them in order to be both safe against outliers and less bias. By default this ASD is one-sided.
+'''what is S? ASD?'''
 
 asd = data.asd(FFTlength, FFTlength/2., method='median-mean')
 
