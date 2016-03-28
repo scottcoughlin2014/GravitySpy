@@ -644,7 +644,6 @@ def wtransform(data, tiling, outlierFactor, \
     dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
     halfDataLength = dataLength / 2 + 1;
 
-    print(halfDataLength)
     # validate data length and force row vectors
     if len(data) != halfDataLength:
 	sys.exit()
@@ -742,7 +741,8 @@ def wtransform(data, tiling, outlierFactor, \
                 # extract and window in-band data
                 windowedData[channelstr] = tiling[planestr][rowstr]['window'] * \
                 data[tiling[planestr][rowstr]['dataIndices']];
-
+		
+		pdb.set_trace()
                 # zero pad windowed data
                 windowedData[channelstr] = np.pad(windowedData[intChannelstr],\
                                     [leftZeroPadLength,rightZeroPadLength],'constant',constant_values=(0,0))
@@ -1541,17 +1541,17 @@ asd = data.asd(FFTlength, FFTlength/2., method='median-mean')
 dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
 halfDataLength = int(dataLength / 2 + 1);
 #data = data[:halfDataLength]
-
+import pdb
 # Apply condition to the data
-#data = data.whiten(FFTlength, FFTlength/2., asd=asd)
+white_data = data.whiten(FFTlength, FFTlength/2., asd=asd)
 ###########
-def whiten(data, asd):
-    freq_data = data.fft()
-    assert asd.df == freq_data.df
-    freq_data /= asd
+#def whiten(data, asd):
+#    freq_data = data.fft()
+#    assert asd.df == freq_data.df
+#    freq_data /= asd
     # FIXME: No ifft method on the frequency data
-    return freq_data.ifft()
-white_data = whiten(data, asd)
+#    return freq_data.ifft()
+#white_data = whiten(data, asd)
 #############
 
 plot = white_data.plot()
