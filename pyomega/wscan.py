@@ -394,7 +394,6 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     	    # bi square window function
             '''what?'''
      	    window = (1 - windowArgument**2)**2;
-
             # row normalization factor
     	    rowNormalization = np.sqrt((315 * qPrime) / (128 * frequency));
 
@@ -435,7 +434,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     	    tiling[planestr][rowstr]['zeroPadLength'] = zeroPadLength;
 
     	    # insert data index vector into frequency row structure
-    	    tiling[planestr][rowstr]['dataIndices'] = dataIndices;
+    	    tiling[planestr][rowstr]['dataIndices'] = dataIndices.astype('int');
 
     	    # insert number of time tiles into frequency row structure
     	    tiling[planestr][rowstr]['numberOfTiles'] = numberOfTiles;
@@ -625,7 +624,7 @@ def highpassfilt(data,tiling):
     data.value[:lpefOrder] = np.zeros(lpefOrder);
     data.value[(dataLength - lpefOrder) :dataLength] = np.zeros(lpefOrder);
 
-    return data
+    return data, lpefOrder
 
 ###############################################################################
 #####################                                  ########################
@@ -723,6 +722,7 @@ def wtransform(data, tiling, outlierFactor, \
 
     # begin loop over Q planes
     for plane in np.arange(0,numberOfPlanes):
+	planestr = 'plane' + str(plane)
 
         ########################################################################
         #                begin loop over frequency rows                        #
@@ -731,36 +731,37 @@ def wtransform(data, tiling, outlierFactor, \
         # begin loop over frequency rows
         for row in np.arange(0,tiling[planestr]['numberOfRows']):
 
+	    rowstr = 'row' +str(row)
+
             ####################################################################
     	    #          extract and window frequency domain data                #
             ####################################################################
 
     	    # number of zeros to pad at negative frequencies
-    	    leftZeroPadLength = (tiling[planestr][rowstr]['zeroPadLength'] - 1) / 2;
+    	    leftZeroPadLength = int((tiling[planestr][rowstr]['zeroPadLength'] - 1) / 2);
 
     	    # number of zeros to pad at positive frequencies
-            rightZeroPadLength = (tiling[planestr][rowstr]['zeroPadLength'] + 1) / 2;
+            rightZeroPadLength = int((tiling[planestr][rowstr]['zeroPadLength'] + 1) / 2);
 
             # begin loop over intermediate channels
             for channel in np.arange(0,numberOfChannels):
-                
                 channelstr = 'channel' + str(channel)
                 windowedData[channelstr] ={}
                 # extract and window in-band data
                 windowedData[channelstr] = tiling[planestr][rowstr]['window'] * \
                 data[tiling[planestr][rowstr]['dataIndices']];
 		
-		pdb.set_trace()
                 # zero pad windowed data
-                windowedData[channelstr] = np.pad(windowedData[intChannelstr],\
+                windowedData[channelstr] = np.pad(windowedData[channelstr],\
                                     [leftZeroPadLength,rightZeroPadLength],'constant',constant_values=(0,0))
-                
                 # reorder indices for fast fourier transform
-                endIndex = len(windowedData[channelstr])
-                order = np.arange(endIndex/2,endIndex)
-                order.append(np.arange(0,(endIndex/2)-1))
-                windowedData[channelstr] = \
-                [windowedData[channelstr][i] for i in order];
+		lastIndex = len(windowedData[channelstr]) 
+		order1 = np.arange(lastIndex / 2,lastIndex)
+	        order2 = np.arange(0,lastIndex/2)
+	        order1 = order1.astype('int')
+		order2 = order2.astype('int')
+	        order  = np.concatenate((order1,order2))
+		windowedData[channelstr] = windowedData[channelstr][order]
 
             # end loop over intermediate channels
 
@@ -775,7 +776,7 @@ def wtransform(data, tiling, outlierFactor, \
                 # Initialize tileCoefficients
                 tileCoefficients[channelstr] = {}
                 # complex valued tile coefficients
-                tileCoefficients[channelstr] = np.fft.ifft(windowedData[intChannelstr]);
+                tileCoefficients[channelstr] = np.fft.ifft(windowedData[channelstr]);
             # End loop over intermediate channels
 
             ##################################################################
@@ -785,7 +786,6 @@ def wtransform(data, tiling, outlierFactor, \
             # compute energies directly from intermediate data
             for channel in np.arange(0,numberOfChannels):
                 channelstr = 'channel' + str(channel)
-                
                 energies[channelstr] = \
                     tileCoefficients[channelstr].real**2 + \
                     tileCoefficients[channelstr].imag**2 ;
@@ -796,8 +796,8 @@ def wtransform(data, tiling, outlierFactor, \
             #        exclude outliers and filter transients from statistics    #
             ####################################################################
 
-    	    times = np.arange(0,(tiling[planestr][rowstr]['numberOfTiles'] - 1) * \
-            	tiling[planestr][rowstr]['timeStep']);
+    	    times = np.arange(0,tiling[planestr][rowstr]['numberOfTiles']) * \
+            	tiling[planestr][rowstr]['timeStep'];
 
             # begin loop over channels
     	    for channel in np.arange(0,numberOfChannels):
@@ -805,16 +805,16 @@ def wtransform(data, tiling, outlierFactor, \
                 
       	    	# indices of non-transient tiles
                 validIndices[channelstr] = \
-                np.where((times > \
-                	tiling['generalparams']['transientDuration']) and \
-               	     (times < \
-                	tiling['generalparams']['duration']- tiling['generalparams']['transientDuration']));
+                np.logical_and(times > \
+                	tiling['generalparams']['transientDuration'], \
+               	     times < \
+                	tiling['generalparams']['duration']- tiling['generalparams']['transientDuration']);
 
                 # identify lower and upper quartile energies
                 sortedEnergies = \
                     np.sort(energies[channelstr][validIndices[channelstr]]);
                 lowerQuartile[channelstr] = \
-                sortedEnergies[np.round(0.25 * length(validIndices[channelstr]))];
+                sortedEnergies[np.round(0.25 * len(validIndices[channelstr]))];
                 upperQuartile[channelstr] = \
                 sortedEnergies[np.round(0.75 * len(validIndices[channelstr]))];
 
@@ -828,12 +828,12 @@ def wtransform(data, tiling, outlierFactor, \
 
                 # indices of non-outlier and non-transient tiles
                 validIndices[channelstr] = \
-                    np.where((energies[channelstr] < \
-                          outlierThreshold[channelstr]) and \
-                         (times > \
-                          tiling['generalparams']['transientDuration']) and \
-                         (times < \
-                          tiling['generalparams']['duration']- tiling['generalparams']['transientDuration']));
+                    np.logical_and(np.logical_and(energies[channelstr] < \
+                          outlierThreshold[channelstr],\
+                          times > \
+                          tiling['generalparams']['transientDuration']), \
+                          times < \
+                          tiling['generalparams']['duration']- tiling['generalparams']['transientDuration']);
 
             # end loop over channels
 
@@ -863,7 +863,7 @@ def wtransform(data, tiling, outlierFactor, \
 
       	    	# mean of valid tile energies
       	    	meanEnergy[channelstr] = \
-          	    mean(energies[channelstr](validIndices[channelstr]));
+          	    np.mean(energies[channelstr][validIndices[channelstr]]);
 
       	    	# correct for bias due to outlier rejection
       	    	meanEnergy[channelstr] = meanEnergy[channelstr] * \
@@ -907,10 +907,10 @@ def wtransform(data, tiling, outlierFactor, \
     #                return discrete Q transform structure                     #
     ############################################################################
 
-    for channel in np.arange(0,numberOfChannels):
-        channelstr = 'channel' + str(channel)
-    	transforms[channelstr]['channelName'] = \
-            outputChannelNames[channelstr];
+    #for channel in np.arange(0,numberOfChannels):
+    #    channelstr = 'channel' + str(channel)
+    # 	transforms[channelstr]['channelName'] = \
+    #         outputChannelNames[channelstr];
 
     return transforms
 
@@ -1118,8 +1118,8 @@ def wmeasure(transforms, tiling, startTime, \
             #                  calculate times                                #
             ###################################################################
 
-            times = np.arange(0,(tiling[planestr][rowstr]['numberOfTiles'] - 1) * \
-                   tiling[planestr][rowstr]['timeStep']);
+            times = np.arange(0,tiling[planestr][rowstr]['numberOfTiles']) * \
+                   tiling[planestr][rowstr]['timeStep'];
 
             ###################################################################
             #           threshold on central frequency                        #
@@ -1404,6 +1404,15 @@ def wmeasure(transforms, tiling, startTime, \
 
     return measurements
 
+###########
+#def whiten(data, asd):
+#    freq_data = data.fft()
+#    assert asd.df == freq_data.df
+#    freq_data /= asd
+    # FIXME: No ifft method on the frequency data
+#    return freq_data.ifft()
+#white_data = whiten(data, asd)
+#############
 ###############################################################################
 ##########################                     ################################
 ##########################      MAIN CODE      ################################
@@ -1467,9 +1476,10 @@ print('outputDirectory:  {0}'.format(outDir));
 system_call = 'mkdir -p {0}'.format(outDir)
 os.system(system_call)
 
-###############################################################################################
-#     Determine if this is a normal omega scan or a Gravityspy omega scan with unique ID      #
-###############################################################################################
+########################################################################
+#     Determine if this is a normal omega scan or a Gravityspy         #
+#	omega scan with unique ID                                      #
+########################################################################
 
 if opts.uniqueID is None:
 	IDstring = opts.eventTime
@@ -1516,10 +1526,9 @@ tiling = wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
              whiteningDuration, transientFactor);
 
 # high pass filter and whiten data
-#whitenedData = wcondition(rawData, tiling);
-#data = data.highpass(tiling['generalparams']['highPassCutoff'])
-data = highpassfilt(data,tiling)
-# Plot HighPass Filtered Time Series at given plot durations
+data,lpefOrder = highpassfilt(data,tiling)
+
+# Plot HighPass Filtered Time  Series at given plot durations
 plot = data.plot()
 plot.set_title('HighPassFilter')
 plot.set_ylabel('Gravitational-wave strain amplitude')
@@ -1529,13 +1538,6 @@ for iTime in np.arange(0,len(plotTimeRanges)):
     plot.save('/home/scoughlin/public_html/test3/highpass' + str(plotTimeRanges[iTime]) + '.png')
 
 # Time to whiten the times series data
-# Desired FFT length [samples].  Must be a power of 2.
-#N = tiling['generalparams']['sampleFrequency']*tiling['generalparams']['whiteningDuration']
-# Create hann window
-#w = np.hanning(N);
-# ---- Enforce unity RMS on the window.
-#w = w/np.mean(w**2)**0.5;
-
 # Our FFTlength is determined by the predetermined whitening duration found in wtile
 FFTlength = tiling['generalparams']['whiteningDuration']
 
@@ -1544,49 +1546,30 @@ FFTlength = tiling['generalparams']['whiteningDuration']
 
 asd = data.asd(FFTlength, FFTlength/2., method='median-mean')
 
-# We must interpolate via a cubic spline the given ASD to be half the data length as omega scan take 1 sided power spectral density function.
-#sampFreqs = np.arange(0,(tiling['generalparams']['sampleFrequency']*0.5)+0.5,0.5)
-#cubic_spline = scipy.interpolate.interp1d(sampFreqs,asd.value,kind='cubic');
-#asdinterp = cubic_spline(np.arange(0,(tiling['generalparams']['sampleFrequency']*0.5)+0.5,1/tiling['generalparams']['duration']))
-
-# Extract one-sided frequency-domain high pass filtered data
-dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
-halfDataLength = int(dataLength / 2 + 1);
-#data = data[:halfDataLength]
-# Apply condition to the data
+# Apply ASD to the data to whiten it
 white_data = data.whiten(FFTlength, FFTlength/2., asd=asd)
-###########
-#def whiten(data, asd):
-#    freq_data = data.fft()
-#    assert asd.df == freq_data.df
-#    freq_data /= asd
-    # FIXME: No ifft method on the frequency data
-#    return freq_data.ifft()
-#white_data = whiten(data, asd)
-#############
 
 plot = white_data.plot()
 plot.set_title('Whitened')
 plot.set_ylabel('Gravitational-wave strain amplitude')
+plot.save('/home/scoughlin/public_html/test3/whitenedwhole.png')
 for iTime in np.arange(0,len(plotTimeRanges)):
     halfTimeRange = plotTimeRanges[iTime]*0.5
     plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
     plot.save('/home/scoughlin/public_html/test3/whitened' + str(plotTimeRanges[iTime]) + '.png')
 
-# Extract one-sided frequency-domain condiitoned data.
-white_data = white_data[:halfDataLength]
-print white_data.size
-
-# Extract one-sided frequency-domain condiitoned data.
+# Extract one-sided frequency-domain conditioned data.
+dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
+halfDataLength = int(dataLength / 2 + 1);
+white_data_fft = white_data.fft()
 
 # q transform whitened data
 coefficients = [];
 coordinate = [np.pi/2,0]
 whitenedTransform = \
-  wtransform(white_data, tiling, outlierFactor, 'independent', channelName,coefficients, coordinate);
+  wtransform(white_data_fft, tiling, outlierFactor, 'independent', channelName,coefficients, coordinate);
 
 # identify most significant whitened transform tile
-wlog(debugLevel, 2, '  measuring peak significance...\n');
 thresholdReferenceTime = centerTime;
 thresholdTimeRange = 0.5 * searchWindowDuration * [-1 +1];
 thresholdFrequencyRange = [];

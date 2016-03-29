@@ -337,12 +337,11 @@ for row = 1 : numberOfRows,
 end
     
 for iN = 1:length(timeRange);
-
         surf(times{iN}, frequencies, normalizedEnergies{iN});
         colormapScale = normalizedEnergyRange(:).';
 
         % apply colormap scaling
-        colormap('parula');
+        colormap('jet');
         caxis(colormapScale);
 
         % set axis position
@@ -355,7 +354,6 @@ for iN = 1:length(timeRange);
 
         % disable coordinate grid
         grid off;
-
         % enable interpolated shading
         shading interp;
        
@@ -383,12 +381,16 @@ for iN = 1:length(timeRange);
         set(gca, 'TickDir', 'out')
         xlabel('Normalized tile energy');
         set(findall(gcf,'-property','FontSize'),'FontSize',10)
-        N = getframe(gcf);
-        clf
+%        figName = sprintf('%s_%.2f.png', ...
+%                  uniqueID, abs(diff(timeRange1{iN})));
+%        figBasePath = [outputDirectory '/' figName];
+%        print(gcf,figBasePath,'-dpng','-r75')
+%	clf
         figName = sprintf('%s_%.2f.png', ...
                   uniqueID, abs(diff(timeRange1{iN})));
         figBasePath = [outputDirectory '/' figName];
-        savepng(N.cdata,figBasePath);
+	print(gcf,figBasePath,'-dpng','-r75')
+	clf
 end
 
 
