@@ -1400,6 +1400,218 @@ def wmeasure(transforms, tiling, startTime, \
 
     return measurements
 
+###############################################################################
+##########################                     ################################
+##########################      wspectrogram   ################################
+##########################                     ################################
+###############################################################################
+
+def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
+           referenceTime, timeRange, frequencyRange, qRange,\
+	 	normalizedEnergyRange, horizontalResolution):
+
+# WSPECTROGRAM Display time-frequency Q transform spectrograms
+#
+# WSPECTROGRAM displays multi-resolution time-frequency spectrograms of
+# normalized tile energy produced by WTRANSFORM.  A separate figure is produced
+# for each channel and for each time-frequency plane within the requested range
+# of Q values.  The resulting spectrograms are logarithmic in frequency and
+# linear in time, with the tile color denoting normalized energy.
+#
+# usage:
+#
+#   handles = wspectrogram(transforms, tiling, startTime, referenceTime, ...
+#                          timeRange, frequencyRange, qRange, ...
+#                          normalizedEnergyRange, horizontalResolution);
+#
+#     transforms              cell array of q transform structures
+#     tiling                  q transform tiling structure
+#     startTime               start time of transformed data
+#     referenceTime           reference time of plot
+#     timeRange               vector range of relative times to plot
+#     frequencyRange          vector range of frequencies to plot
+#     qRange                  scalar Q or vector range of Qs to plot
+#     normalizedEnergyRange   vector range of normalized energies for colormap
+#     horizontalResolution    number of data points across image
+#
+#     handles                 matrix of axis handles for each spectrogram
+#
+# The user can focus on a subset of the times and frequencies available in the
+# original transform data by specifying a desired time and frequency range.
+# Ranges should be specified as a two component vector, consisting of the
+# minimum and maximum value.  Additionally, WSPECTROGRAM can be restricted to
+# plot only a subset of the available Q planes by specifying a single Q or a
+# range of Qs.  If a single Q is specified, WSPECTROGRAM displays the
+# time-frequency plane which has the nearest value of Q in a logarithmic sense
+# to the requested value.  If a range of Qs is specified, WSPECTROGRAM displays
+# all time-frequency planes with Q values within the requested range.  By
+# default all available channels, times, frequencies, and Qs are plotted.  The
+# default values can be obtained for any argument by passing the empty matrix
+# [].
+#
+# To determine the range of times to plot, WSPECTROGRAM requires the start time
+# of the transformed data, a reference time, and relative time range.  Both the
+# start time and reference time should be specified as absolute quantities, but
+# the range of times to plot should be specified relative to the requested
+# reference time.  The specified reference time is used as the time origin in
+# the resulting spectrograms and is also reported in the title of each plot.
+#
+# If only one time-frequency plane is requested, it is plotted in the current
+# figure window.  If more than one spectrogram is requested, they are plotted
+# in separate figure windows starting with figure 1.
+#
+# The optional normalizedEnergyRange specifies the range of values to encode
+# using the colormap.  By default, the lower bound is zero and the upper bound
+# is autoscaled to the maximum normalized energy encountered in the specified
+# range of time, frequency, and Q.
+#
+# The optional cell array of channel names are used to label the resulting
+# figures.
+#
+# The optional horizontal resolution argument specifies the number data points
+# in each frequency row of the displayed image.  The vector of normalized
+# energies in each frequency row is then interpolated to this resolution in
+# order to produce a rectangular array of data for displaying.  The vertical
+# resolution is directly determined by the number of frequency rows available in
+# the transform data.  By default, a horizontal resolution of 2048 data points
+# is assumed, but a higher value may be necessary if the zoom feature will be
+# used to magnify the image.  For aesthetic purposes, the resulting image is
+# also displayed with interpolated color shading enabled.
+#
+# WSPECTROGRAM returns a matrix of axis handles for each spectrogram with
+# each channel in a separate row and each Q plane in a separate column.
+#
+# See also WTILE, WCONDITION, WTRANSFORM, WEVENTGRAM, and WEXAMPLE.
+
+# Shourov K. Chatterji <shourov@ligo.mit.edu>
+
+# $Id: wspectrogram.m 2753 2010-02-26 21:33:24Z jrollins $
+
+    ############################################################################
+    #                        hard coded parameters                             #
+    ############################################################################
+
+    # number of horizontal pixels in image
+    defaultHorizontalResolution = 2048;
+
+    # spectrogram boundary
+    spectrogramLeft = 0.14;
+    spectrogramWidth = 0.80;
+    spectrogramBottom = 0.28;
+    spectrogramHeight = 0.62;
+    spectrogramPosition = [spectrogramLeft spectrogramBottom ...
+                       spectrogramWidth spectrogramHeight];
+
+    # colorbar position
+    colorbarLeft = spectrogramLeft;
+    colorbarWidth = spectrogramWidth;
+    colorbarBottom = 0.12;
+    colorbarHeight = 0.02;
+    colorbarPosition = [colorbarLeft colorbarBottom ...
+                    colorbarWidth colorbarHeight];
+
+    # time scales for labelling
+    millisecondThreshold = 0.5;
+    secondThreshold = 3 * 60;
+    minuteThreshold = 3 * 60 * 60;
+    hourThreshold = 3 * 24 * 60 * 60;
+    dayThreshold = 365.25 * 24 * 60 * 60;
+
+    ############################################################################
+    #                      identify q plane to display                         #
+    ############################################################################
+    # find plane with Q nearest the requested value
+    planeIndices = np.argmin(abs(np.log(tiling['generalparams']['qs'] / qRange)));
+
+    # number of planes to display
+    numberOfPlanes = len(planeIndices);
+
+    # index of plane in tiling structure
+    planeIndex = planeIndices[0];
+    planeIndexstr = 'plane' + str(planeIndex)
+    ########################################################################
+    #               identify frequency rows to display                     #
+    ########################################################################
+
+    pdb.set_trace()
+    # vector of frequencies in plane
+    frequencies = tiling['planeIndexstr']['frequencies'];
+
+    # find rows within requested frequency range
+    rowIndices = np.logical_and(frequencies >= np.min(frequencyRange),
+                  frequencies <= np.max(frequencyRange));
+
+    # pad by one row if possible
+    #if rowIndices(1) > 1,
+    #  rowIndices = [rowIndices(1) - 1 rowIndices];
+    #if rowIndices(end) < length(frequencies),
+    #  rowIndices = [rowIndices rowIndices(end) + 1];
+
+    # vector of frequencies to display
+    frequencies = frequencies[rowIndices];
+
+    # number of rows to display
+    numberOfRows = len(rowIndices);
+
+    ############################################################################
+    #                       initialize display matrix                          #
+    ############################################################################
+
+    # initialize matrix of normalized energies for display
+    for iN in np.arange(0,len(timeRange)):
+        normalizedEnergies{iN} = np.zeros(numberOfRows, horizontalResolution);
+
+    ############################################################################
+    #                     begin loop over frequency rows                       #
+    ############################################################################
+
+    # loop over rows
+    for row = 1 : numberOfRows,
+
+        # index of row in tiling structure
+        rowIndex = rowIndices(row);
+
+        # vector of times in plane
+        rowTimes = ...
+           (0 :  tiling.planes{planeIndexstr}.rows{rowIndex}.numberOfTiles - 1) ... 
+          * tiling.planes{planeIndexstr}.rows{rowIndex}.timeStep + ...
+             (startTime - referenceTime);
+
+        # find tiles within requested time range
+        for iN in np.arange(0,len(timeRange)):
+            # vector of times to display
+            timeRange1{iN} = timeRange(iN) * [-1 +1]*0.5;
+            times{iN} = linspace(min(timeRange1{iN}), max(timeRange1{iN}), horizontalResolution);
+            padTime = 1.5 * tiling.planes{planeIndexstr}.rows{rowIndex}.timeStep;
+            tileIndices = find((rowTimes >= min(timeRange1{iN}) - padTime) & ...
+                     (rowTimes <= max(timeRange1{iN}) + padTime));
+
+            # vector of times to display
+            rowTimestemp = rowTimes(tileIndices);
+
+            # corresponding tile normalized energies
+            rowNormalizedEnergies = transforms{channelNumber}.planes{planeIndexstr} ...
+                            .rows{rowIndex}.normalizedEnergies(tileIndices);
+
+            # interpolate to desired horizontal resolution
+            rowNormalizedEnergies = interp1(rowTimestemp, rowNormalizedEnergies, times{iN}, ...
+                                  'pchip');
+
+            # insert into display matrix
+            normalizedEnergies{iN}(row, :) = rowNormalizedEnergies;
+
+############################################################################
+#                      end loop over frequency rows                        #
+############################################################################
+
+   
+############################################################################
+#                      Plot spectrograms                                   #
+############################################################################ 
+for iN in np.arange(0,len(timeRange)):
+
+    return
+
 ###########
 #def whiten(data, asd):
 #    freq_data = data.fft()
