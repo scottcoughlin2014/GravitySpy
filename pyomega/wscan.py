@@ -814,9 +814,9 @@ def wtransform(data, tiling, outlierFactor, \
                 sortedEnergies = \
                     np.sort(energies[channelstr][validIndices[channelstr]]);
                 lowerQuartile[channelstr] = \
-                sortedEnergies[np.round(0.25 * len(validIndices[channelstr]))];
+                sortedEnergies[np.round(0.25 * len(validIndices[channelstr])).astype('int')];
                 upperQuartile[channelstr] = \
-                sortedEnergies[np.round(0.75 * len(validIndices[channelstr]))];
+                sortedEnergies[np.round(0.75 * len(validIndices[channelstr])).astype('int')];
 
                 # determine inter quartile range
                 interQuartileRange[channelstr] = upperQuartile[channelstr] - \
@@ -922,7 +922,7 @@ def wtransform(data, tiling, outlierFactor, \
 
 def wmeasure(transforms, tiling, startTime, \
                                  referenceTime, timeRange, frequencyRange, \
-                                 qRange, debugLevel):
+                                 qRange):
     # WMEASURE Measure peak and weighted signal properties from Q transforms
     #
     # WMEASURE reports the peak and significance weighted mean properties of Q
@@ -1003,19 +1003,15 @@ def wmeasure(transforms, tiling, startTime, \
     if not referenceTime:
       referenceTime = startTime + tiling.duration / 2;
 
-    if not timeRange:
-      timeRange = 0.5 * \
-	(tiling.duration - 2 * tiling.transientDuration) * [-1 +1];
+#    if not timeRange:
+#      timeRange = 0.5 * \
+#	(tiling['generalparams']['duration'] - 2 * tiling['generalparams']['transientDuration']) * [-1 +1];
 
     if not frequencyRange:
       frequencyRange = [float('-Inf'),float('Inf')];
 
     if not qRange:
       qRange = [float('-Inf'),float('Inf')];
-
-    if not debugLevel:
-      debugLevel = 1;
-
 
     # determine number of channels
     numberOfChannels = len(transforms);
@@ -1048,7 +1044,7 @@ def wmeasure(transforms, tiling, startTime, \
     # Initialize measurements cell
     measurements = {}
     peakPlane = {}
-    numberOfPlanes = tiling['generalparams']['numberOfPlanes']
+    numberOfPlanes = tiling['generalparams']['numberOfPlanes'].astype('int')
 
     # create empty cell array of measurement structures
     # begin loop over channels
@@ -1086,7 +1082,7 @@ def wmeasure(transforms, tiling, startTime, \
           np.zeros(numberOfPlanes);
 
         # end loop over channels
-
+    numberOfPlanes = numberOfPlanes.astype('float')
 
     ###########################################################################
     #                      begin loop over Q planes                           #
@@ -1095,6 +1091,7 @@ def wmeasure(transforms, tiling, startTime, \
     # begin loop over Q planes
     for plane in np.arange(0,numberOfPlanes):
         planestr = 'plane' +str(plane)
+	plane = plane.astype('int')
         numberOfRows = tiling[planestr]['numberOfRows']
       
         #######################################################################
@@ -1138,11 +1135,10 @@ def wmeasure(transforms, tiling, startTime, \
         
             # skip tiles outside requested time range
             tileIndices = \
-                np.where((times >= \
-                  (referenceTime - startTime + min(timeRange))) and \
-                 (times <= \
-                  (referenceTime - startTime + max(timeRange))));
-
+                np.logical_and(times >= \
+                  (referenceTime - startTime + min(timeRange)), \
+                 times <= \
+                  (referenceTime - startTime + max(timeRange)));
             ###################################################################
             #  differential time-frequency area for integration               #
             ###################################################################
@@ -1168,7 +1164,8 @@ def wmeasure(transforms, tiling, startTime, \
                         ['normalizedEnergies'][tileIndices];
 
                 # find most significant tile in row
-                [peakNormalizedEnergy, peakIndex] = max(normalizedEnergies);
+                peakNormalizedEnergy = np.max(normalizedEnergies);
+		peakIndex            = np.argmax(normalizedEnergies).astype('int')
 
                 # if peak tile is in this row
                 if peakNormalizedEnergy > \
@@ -1222,7 +1219,6 @@ def wmeasure(transforms, tiling, startTime, \
                 significantIndices = np.where(normalizedEnergies > \
                                                 normalizedEnergyThreshold);
                 normalizedEnergies = normalizedEnergies[significantIndices];
-                significantIndices = tileIndices[significantIndices];
 
                 # vector of row tile calibrated energies
                 calibratedEnergies = (normalizedEnergies - 1) * \
@@ -1238,7 +1234,7 @@ def wmeasure(transforms, tiling, startTime, \
                 # update weighted central time integral
                 measurements[channelstr]['signalTime'][plane] = \
                     measurements[channelstr]['signalTime'][plane] + \
-                        sum(times[significantIndices] * \
+                        sum(times[tileIndices][significantIndices] * \
                             calibratedEnergies) * \
                             differentialArea;
 
@@ -1252,7 +1248,7 @@ def wmeasure(transforms, tiling, startTime, \
                 # update weighted duration integral
                 measurements[channelstr]['signalDuration'][plane] = \
                     measurements[channelstr]['signalDuration'][plane] + \
-                            sum(times[significantIndices]**2 * \
+                            sum(times[tileIndices][significantIndices]**2 * \
                                 calibratedEnergies) * \
                                 differentialArea;
 
@@ -1280,7 +1276,7 @@ def wmeasure(transforms, tiling, startTime, \
                     measurements[channelstr]['signalArea'][plane] + \
                         len(normalizedEnergies) * \
                             differentialArea;
-          
+
             ##################################################################
             #              end loop over channels                            #
             ##################################################################
@@ -1297,7 +1293,7 @@ def wmeasure(transforms, tiling, startTime, \
       
         # begin loop over channels
         for channel in np.arange(0,numberOfChannels):
-
+	    channelstr = 'channel' + str(channel)
             # normalize weighted signal properties by total normalized energy
             if measurements[channelstr]['signalAmplitude'][plane] != 0:
                 
@@ -1325,7 +1321,7 @@ def wmeasure(transforms, tiling, startTime, \
                 np.sqrt(measurements[channelstr]['signalDuration'][plane] - \
                      measurements[channelstr]['signalTime'][plane]**2);
             measurements[channelstr]['signalBandwidth'][plane] = \
-                sqrt(measurements[channelstr]['signalBandwidth'][plane] - \
+                np.sqrt(measurements[channelstr]['signalBandwidth'][plane] - \
                      measurements[channelstr]['signalTime'][plane]**2);
 
             # convert signal energy to signal amplitude
@@ -1334,7 +1330,7 @@ def wmeasure(transforms, tiling, startTime, \
 
             # add start time to measured central time
             measurements[channelstr]['signalTime'][plane] = \
-                np.measurements[channelstr]['signalTime'][plane] + startTime;
+                measurements[channelstr]['signalTime'][plane] + startTime;
 
         # end loop over channels
 
@@ -1571,17 +1567,17 @@ whitenedTransform = \
 
 # identify most significant whitened transform tile
 thresholdReferenceTime = centerTime;
-thresholdTimeRange = 0.5 * searchWindowDuration * [-1 +1];
+thresholdTimeRange = 0.5 * searchWindowDuration * np.array([-1,1]);
 thresholdFrequencyRange = [];
 thresholdQRange = [];
 whitenedProperties = \
   wmeasure(whitenedTransform, tiling, startTime, thresholdReferenceTime, \
-           thresholdTimeRange, thresholdFrequencyRange, thresholdQRange, \
-           debugLevel);
- 
+           thresholdTimeRange, thresholdFrequencyRange, thresholdQRange);
+
+pdb.set_trace() 
 # Select most siginficant Q
 mostSignificantQ = \
-      whitenedProperties['peakQ'];
+      whitenedProperties['channel0']['peakQ'];
 
 ############################################################################
 #                      plot whitened spectrogram                           #
