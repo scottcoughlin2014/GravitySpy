@@ -9,7 +9,9 @@ from glue.lal import CacheEntry
 import numpy as np
 from gwpy.timeseries import TimeSeries
 import scipy 
-
+import rlcompleter
+import pdb
+pdb.Pdb.complete = rlcompleter.Completer(locals()).complete
 ###############################################################################
 ##########################                             ########################
 ##########################   Func: parse_commandline   ########################
@@ -68,7 +70,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     nyquistFrequency = sampleFrequency / 2;
 
     # maximum mismatch between neighboring tiles
-'''why is this the formula for max mismatch'''
+    '''why is this the formula for max mismatch'''
     mismatchStep = 2 * np.sqrt(searchMaximumEnergyLoss / 3);
 
     # maximum possible time resolution
@@ -78,7 +80,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     minimumFrequencyStep = 1 / blockTime;
 
     # conversion factor from Q' to true Q
-'''why sqrt(11)'''
+    '''why sqrt(11)'''
     qPrimeToQ = np.sqrt(11);
 
     # total number of samples in input data
@@ -390,7 +392,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     	    windowArgument = windowFrequencies * qPrime / frequency;
 
     	    # bi square window function
-'''what?'''
+            '''what?'''
      	    window = (1 - windowArgument**2)**2;
 
             # row normalization factor
@@ -1318,7 +1320,7 @@ def wmeasure(transforms, tiling, startTime, \
 
             # duration and bandwidth are second central
             # moments in time and frequency
-'''Not sure what this means...'''            
+            '''Not sure what this means...'''            
             measurements[channelstr]['signalDuration'][plane] = \
                 np.sqrt(measurements[channelstr]['signalDuration'][plane] - \
                      measurements[channelstr]['signalTime'][plane]**2);
@@ -1551,7 +1553,6 @@ asd = data.asd(FFTlength, FFTlength/2., method='median-mean')
 dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
 halfDataLength = int(dataLength / 2 + 1);
 #data = data[:halfDataLength]
-import pdb
 # Apply condition to the data
 white_data = data.whiten(FFTlength, FFTlength/2., asd=asd)
 ###########
