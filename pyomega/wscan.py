@@ -1557,34 +1557,38 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
     #                       initialize display matrix                          #
     ############################################################################
 
+    normalizedEnergies = {}
     # initialize matrix of normalized energies for display
     for iN in np.arange(0,len(timeRange)):
-        normalizedEnergies{iN} = np.zeros(numberOfRows, horizontalResolution);
+	timestr = 'time' + str(iN)
+        normalizedEnergies[timestr] = np.zeros((numberOfRows, horizontalResolution));
 
     ############################################################################
     #                     begin loop over frequency rows                       #
     ############################################################################
 
     # loop over rows
-    for row = 1 : numberOfRows,
+    for row in np.arange(0,numberOfRows):
 
         # index of row in tiling structure
-        rowIndex = rowIndices(row);
+        rowIndex = rowIndices[row];
+	rowstr   = 'row' + str(rowIndex)
 
         # vector of times in plane
-        rowTimes = ...
-           (0 :  tiling.planes{planeIndexstr}.rows{rowIndex}.numberOfTiles - 1) ... 
-          * tiling.planes{planeIndexstr}.rows{rowIndex}.timeStep + ...
+        rowTimes = \
+           np.arange(0,tiling[planeIndexstr][rowstr]['numberOfTiles'])\ 
+          * tiling[planeIndexstr][rowstr]['timeStep'] + \
              (startTime - referenceTime);
 
         # find tiles within requested time range
         for iN in np.arange(0,len(timeRange)):
+            timestr = 'time' + str(iN)
             # vector of times to display
-            timeRange1{iN} = timeRange(iN) * [-1 +1]*0.5;
-            times{iN} = linspace(min(timeRange1{iN}), max(timeRange1{iN}), horizontalResolution);
-            padTime = 1.5 * tiling.planes{planeIndexstr}.rows{rowIndex}.timeStep;
-            tileIndices = find((rowTimes >= min(timeRange1{iN}) - padTime) & ...
-                     (rowTimes <= max(timeRange1{iN}) + padTime));
+            timeRange1 = timeRange[iN] * np.array([-1,1])*0.5;
+            times[iN] = np.linspace(min(timeRange1[iN]), max(timeRange1[iN]), horizontalResolution);
+            padTime = 1.5 * tiling[planeIndexstr][rowstr]['timeStep'];
+            tileIndices = np.logical_and((rowTimes >= \
+		min(timeRange1{iN}) - padTime),(rowTimes <= max(timeRange1{iN}) + padTime));
 
             # vector of times to display
             rowTimestemp = rowTimes(tileIndices);
