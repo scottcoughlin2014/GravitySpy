@@ -9,8 +9,18 @@ from glue.lal import CacheEntry
 import numpy as np
 from gwpy.timeseries import TimeSeries
 import scipy 
+from scipy.interpolate import interp1d,InterpolatedUnivariateSpline
 import rlcompleter
 import pdb
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+import matplotlib.image as mpimg
+import matplotlib.patches as patches
+import matplotlib.cm as cm
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+import pylab
+from matplotlib import rcParams
+from matplotlib.ticker import ScalarFormatter
 pdb.Pdb.complete = rlcompleter.Completer(locals()).complete
 ###############################################################################
 ##########################                             ########################
@@ -26,7 +36,7 @@ def parse_commandline():
     parser = optparse.OptionParser()
     parser.add_option("--inifile", help="Name of ini file of params")
     parser.add_option("--eventTime", type=float,help="Trigger time of the glitch")
-    parser.add_option("--uniqueID", type=float,help="Unique ID of the glitch (from Gravity Spy project)")
+    parser.add_option("--uniqueID", help="Unique ID of the glitch (from Gravity Spy project)")
     parser.add_option("--outDir", help="Outdir of omega scan and omega scan webpage (i.e. you html directory)")
     parser.add_option("--NSDF", action="store_true", default=False,help="No framecache file available want to use NSDF server")
     opts, args = parser.parse_args()
@@ -1162,7 +1172,6 @@ def wmeasure(transforms, tiling, startTime, \
                 # vector of row tile normalized energies
                 normalizedEnergies = transforms[channelstr][planestr][rowstr]\
                         ['normalizedEnergies'][tileIndices];
-
                 # find most significant tile in row
                 peakNormalizedEnergy = np.max(normalizedEnergies);
 		peakIndex            = np.argmax(normalizedEnergies).astype('int')
@@ -1174,12 +1183,9 @@ def wmeasure(transforms, tiling, startTime, \
                     # update plane index of peak tile
                     peakPlane[channelstr] = plane;
             
-                    # extract time index of peak tile
-                    peakIndex = tileIndices[peakIndex];
-                  
                     # update center time of peak tile
                     measurements[channelstr]['peakTime'] = \
-                        times[peakIndex] + startTime;
+                        times[tileIndices][peakIndex] + startTime;
 
                     # update center frequency of peak tile
                     measurements[channelstr]['peakFrequency'] = \
@@ -1199,14 +1205,10 @@ def wmeasure(transforms, tiling, startTime, \
                       
                     # update normalized energy of peak tile
                     measurements[channelstr]['peakNormalizedEnergy'] = \
-                        (transforms[channelstr][planestr][rowstr]\
-                         ['normalizedEnergies'][peakIndex]);
-
+				peakNormalizedEnergy
                     # udpate amplitude of peak tile
                     measurements[channelstr]['peakAmplitude'] = \
-                        np.sqrt((transforms[channelstr][planestr][rowstr] \
-                              ['normalizedEnergies'][peakIndex] - 1) * \
-                             transforms[channelstr][planestr][rowstr]['meanEnergy']);
+                        np.sqrt((peakNormalizedEnergy - 1) * transforms[channelstr][planestr][rowstr]['meanEnergy']);
                             
                 # End If Statement
           
@@ -1411,136 +1413,30 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 	 	normalizedEnergyRange, horizontalResolution):
 
 # WSPECTROGRAM Display time-frequency Q transform spectrograms
-#
-# WSPECTROGRAM displays multi-resolution time-frequency spectrograms of
-# normalized tile energy produced by WTRANSFORM.  A separate figure is produced
-# for each channel and for each time-frequency plane within the requested range
-# of Q values.  The resulting spectrograms are logarithmic in frequency and
-# linear in time, with the tile color denoting normalized energy.
-#
-# usage:
-#
-#   handles = wspectrogram(transforms, tiling, startTime, referenceTime, ...
-#                          timeRange, frequencyRange, qRange, ...
-#                          normalizedEnergyRange, horizontalResolution);
-#
-#     transforms              cell array of q transform structures
-#     tiling                  q transform tiling structure
-#     startTime               start time of transformed data
-#     referenceTime           reference time of plot
-#     timeRange               vector range of relative times to plot
-#     frequencyRange          vector range of frequencies to plot
-#     qRange                  scalar Q or vector range of Qs to plot
-#     normalizedEnergyRange   vector range of normalized energies for colormap
-#     horizontalResolution    number of data points across image
-#
-#     handles                 matrix of axis handles for each spectrogram
-#
-# The user can focus on a subset of the times and frequencies available in the
-# original transform data by specifying a desired time and frequency range.
-# Ranges should be specified as a two component vector, consisting of the
-# minimum and maximum value.  Additionally, WSPECTROGRAM can be restricted to
-# plot only a subset of the available Q planes by specifying a single Q or a
-# range of Qs.  If a single Q is specified, WSPECTROGRAM displays the
-# time-frequency plane which has the nearest value of Q in a logarithmic sense
-# to the requested value.  If a range of Qs is specified, WSPECTROGRAM displays
-# all time-frequency planes with Q values within the requested range.  By
-# default all available channels, times, frequencies, and Qs are plotted.  The
-# default values can be obtained for any argument by passing the empty matrix
-# [].
-#
-# To determine the range of times to plot, WSPECTROGRAM requires the start time
-# of the transformed data, a reference time, and relative time range.  Both the
-# start time and reference time should be specified as absolute quantities, but
-# the range of times to plot should be specified relative to the requested
-# reference time.  The specified reference time is used as the time origin in
-# the resulting spectrograms and is also reported in the title of each plot.
-#
-# If only one time-frequency plane is requested, it is plotted in the current
-# figure window.  If more than one spectrogram is requested, they are plotted
-# in separate figure windows starting with figure 1.
-#
-# The optional normalizedEnergyRange specifies the range of values to encode
-# using the colormap.  By default, the lower bound is zero and the upper bound
-# is autoscaled to the maximum normalized energy encountered in the specified
-# range of time, frequency, and Q.
-#
-# The optional cell array of channel names are used to label the resulting
-# figures.
-#
-# The optional horizontal resolution argument specifies the number data points
-# in each frequency row of the displayed image.  The vector of normalized
-# energies in each frequency row is then interpolated to this resolution in
-# order to produce a rectangular array of data for displaying.  The vertical
-# resolution is directly determined by the number of frequency rows available in
-# the transform data.  By default, a horizontal resolution of 2048 data points
-# is assumed, but a higher value may be necessary if the zoom feature will be
-# used to magnify the image.  For aesthetic purposes, the resulting image is
-# also displayed with interpolated color shading enabled.
-#
-# WSPECTROGRAM returns a matrix of axis handles for each spectrogram with
-# each channel in a separate row and each Q plane in a separate column.
-#
-# See also WTILE, WCONDITION, WTRANSFORM, WEVENTGRAM, and WEXAMPLE.
-
-# Shourov K. Chatterji <shourov@ligo.mit.edu>
-
-# $Id: wspectrogram.m 2753 2010-02-26 21:33:24Z jrollins $
-
-    ############################################################################
-    #                        hard coded parameters                             #
-    ############################################################################
-
-    # number of horizontal pixels in image
-    defaultHorizontalResolution = 2048;
-
-    # spectrogram boundary
-    spectrogramLeft = 0.14;
-    spectrogramWidth = 0.80;
-    spectrogramBottom = 0.28;
-    spectrogramHeight = 0.62;
-    spectrogramPosition = [spectrogramLeft spectrogramBottom ...
-                       spectrogramWidth spectrogramHeight];
-
-    # colorbar position
-    colorbarLeft = spectrogramLeft;
-    colorbarWidth = spectrogramWidth;
-    colorbarBottom = 0.12;
-    colorbarHeight = 0.02;
-    colorbarPosition = [colorbarLeft colorbarBottom ...
-                    colorbarWidth colorbarHeight];
-
-    # time scales for labelling
-    millisecondThreshold = 0.5;
-    secondThreshold = 3 * 60;
-    minuteThreshold = 3 * 60 * 60;
-    hourThreshold = 3 * 24 * 60 * 60;
-    dayThreshold = 365.25 * 24 * 60 * 60;
 
     ############################################################################
     #                      identify q plane to display                         #
     ############################################################################
     # find plane with Q nearest the requested value
     planeIndices = np.argmin(abs(np.log(tiling['generalparams']['qs'] / qRange)));
-
     # number of planes to display
-    numberOfPlanes = len(planeIndices);
+    numberOfPlanes = planeIndices.size;
 
     # index of plane in tiling structure
-    planeIndex = planeIndices[0];
-    planeIndexstr = 'plane' + str(planeIndex)
+    planeIndex = planeIndices;
+    planeIndexstr = 'plane' + str(float(planeIndex))
+    #planeIndexstr  = 'plane0.0'
     ########################################################################
     #               identify frequency rows to display                     #
     ########################################################################
 
-    pdb.set_trace()
     # vector of frequencies in plane
-    frequencies = tiling['planeIndexstr']['frequencies'];
+    frequencies = tiling[planeIndexstr]['frequencies'];
 
     # find rows within requested frequency range
     rowIndices = np.logical_and(frequencies >= np.min(frequencyRange),
                   frequencies <= np.max(frequencyRange));
-
+    rowIndices = np.where(rowIndices==True)[0]
     # pad by one row if possible
     #if rowIndices(1) > 1,
     #  rowIndices = [rowIndices(1) - 1 rowIndices];
@@ -1549,9 +1445,8 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 
     # vector of frequencies to display
     frequencies = frequencies[rowIndices];
-
     # number of rows to display
-    numberOfRows = len(rowIndices);
+    numberOfRows = frequencies.size;
 
     ############################################################################
     #                       initialize display matrix                          #
@@ -1563,20 +1458,28 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 	timestr = 'time' + str(iN)
         normalizedEnergies[timestr] = np.zeros((numberOfRows, horizontalResolution));
 
+    timeRange1 = {}
+    times      = {}
+
+    for iN in np.arange(0,len(timeRange)):
+        timestr = 'time' + str(iN)
+        # vector of times to display
+        timeRange1[timestr] = timeRange[iN] * np.array([-1,1])*0.5;
+        times[timestr] = np.linspace(min(timeRange1[timestr]), max(timeRange1[timestr]), horizontalResolution);
+
     ############################################################################
     #                     begin loop over frequency rows                       #
     ############################################################################
-
     # loop over rows
     for row in np.arange(0,numberOfRows):
 
         # index of row in tiling structure
         rowIndex = rowIndices[row];
-	rowstr   = 'row' + str(rowIndex)
+	rowstr   = 'row' + str(float(rowIndex))
 
         # vector of times in plane
         rowTimes = \
-           np.arange(0,tiling[planeIndexstr][rowstr]['numberOfTiles'])\ 
+           np.arange(0,tiling[planeIndexstr][rowstr]['numberOfTiles'])\
           * tiling[planeIndexstr][rowstr]['timeStep'] + \
              (startTime - referenceTime);
 
@@ -1584,25 +1487,22 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
         for iN in np.arange(0,len(timeRange)):
             timestr = 'time' + str(iN)
             # vector of times to display
-            timeRange1 = timeRange[iN] * np.array([-1,1])*0.5;
-            times[iN] = np.linspace(min(timeRange1[iN]), max(timeRange1[iN]), horizontalResolution);
             padTime = 1.5 * tiling[planeIndexstr][rowstr]['timeStep'];
             tileIndices = np.logical_and((rowTimes >= \
-		min(timeRange1{iN}) - padTime),(rowTimes <= max(timeRange1{iN}) + padTime));
+		np.min(timeRange1[timestr]) - padTime),(rowTimes <= np.max(timeRange1[timestr]) + padTime));
 
             # vector of times to display
-            rowTimestemp = rowTimes(tileIndices);
+            rowTimestemp = rowTimes[tileIndices];
 
             # corresponding tile normalized energies
-            rowNormalizedEnergies = transforms{channelNumber}.planes{planeIndexstr} ...
-                            .rows{rowIndex}.normalizedEnergies(tileIndices);
-
+            rowNormalizedEnergies = transforms['channel0'][planeIndexstr][rowstr]['normalizedEnergies'][tileIndices];
             # interpolate to desired horizontal resolution
-            rowNormalizedEnergies = interp1(rowTimestemp, rowNormalizedEnergies, times{iN}, ...
-                                  'pchip');
+	    f = InterpolatedUnivariateSpline(rowTimestemp, rowNormalizedEnergies);
+		
+ 	    rowNormalizedEnergies = f(times[timestr]);
 
             # insert into display matrix
-            normalizedEnergies{iN}(row, :) = rowNormalizedEnergies;
+            normalizedEnergies[timestr][row, :] = rowNormalizedEnergies;
 
 ############################################################################
 #                      end loop over frequency rows                        #
@@ -1612,9 +1512,69 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 ############################################################################
 #                      Plot spectrograms                                   #
 ############################################################################ 
-for iN in np.arange(0,len(timeRange)):
+    for iN in np.arange(0,len(timeRange)):
+        timestr = 'time' + str(iN)
+        time = times[timestr]
+        freq = frequencies
+        Energ = normalizedEnergies[timestr]
 
-    return
+	fig, axSpectrogram = plt.subplots()
+
+	# Make Omega Spectrogram
+
+	axSpectrogram.xaxis.set_ticks_position('bottom')
+
+	myfontsize = 15
+	myColor = 'k'
+	mylabelfontsize = 20
+
+	axSpectrogram.set_xlabel("Time (s)", fontsize=mylabelfontsize, color=myColor)
+	axSpectrogram.set_ylabel("Freq (Hz)", fontsize=mylabelfontsize, color=myColor)
+	axSpectrogram.set_title("H1",fontsize=mylabelfontsize, color=myColor)  
+
+	 
+	xmin = min(time)
+	xmax = max(time)
+	dur = xmax-xmin
+	xticks = np.linspace(xmin,xmax,5)
+	xticklabels = []
+	for i in xticks:
+		xticklabels.append("%1.2f" % (i))
+
+	ymin = min(freq)
+	ymax = max(freq)
+
+	#myvmax = np.max(Energ)
+	myvmax = 25.5
+	cmap = cm.get_cmap(name='viridis')
+	myInterp='bicubic'
+
+	cax = axSpectrogram.matshow(Energ, cmap=cmap, \
+                           interpolation=myInterp,aspect='auto', origin='lower', \
+                           vmin=0.0,extent=[xmin,xmax,ymin,ymax],vmax=myvmax)
+
+	axSpectrogram.set_yscale('log', basey=2, subsy=None)
+	ax = plt.gca().yaxis
+	ax.set_major_formatter(ScalarFormatter())
+	axSpectrogram.ticklabel_format(axis='y', style='plain')
+
+	print xticklabels	
+	axSpectrogram.set_xticks(xticks)
+	axSpectrogram.set_xticklabels(xticklabels,fontsize=myfontsize)
+
+	# Create Colorbar
+	# Make an axis: [left, bottom, width, height], plotting area from 0 to 1
+	cbaxes = fig.add_axes([0.905,0.15,0.04,0.75]) 
+	colorbarticks=range(0,30,5)
+	colorbarticklabels=["0","5","10","15","20","25"]
+	colorbarlabel = 'Normalized energy'
+
+	cbar   = fig.colorbar(cax, ticks=colorbarticks,cax=cbaxes)
+	cbar.set_label(label=colorbarlabel, size=myfontsize, color=myColor)
+	cbaxes.set_yticklabels(colorbarticklabels,verticalalignment='center'\
+		, color=myColor)
+	axSpectrogram.xaxis.set_ticks_position('bottom')
+	fig.savefig(outDir + 'spect' + str(dur) +'.png')
 
 ###########
 #def whiten(data, asd):
@@ -1738,7 +1698,7 @@ tiling = wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
              whiteningDuration, transientFactor);
 
 # high pass filter and whiten data
-data,lpefOrder = highpassfilt(data,tiling)
+#data,lpefOrder = highpassfilt(data,tiling)
 
 # Plot HighPass Filtered Time  Series at given plot durations
 plot = data.plot()
@@ -1757,7 +1717,8 @@ FFTlength = tiling['generalparams']['whiteningDuration']
 '''what is S? ASD?'''
 
 asd = data.asd(FFTlength, FFTlength/2., method='median-mean')
-
+#pdb.set_trace()
+#asd = asd *tiling['generalparams']['sampleFrequency']*data.size
 # Apply ASD to the data to whiten it
 white_data = data.whiten(FFTlength, FFTlength/2., asd=asd)
 
@@ -1790,7 +1751,6 @@ whitenedProperties = \
   wmeasure(whitenedTransform, tiling, startTime, thresholdReferenceTime, \
            thresholdTimeRange, thresholdFrequencyRange, thresholdQRange);
 
-pdb.set_trace() 
 # Select most siginficant Q
 mostSignificantQ = \
       whitenedProperties['channel0']['peakQ'];
@@ -1800,7 +1760,7 @@ mostSignificantQ = \
 ############################################################################
 
 # plot whitened spectrogram
-wspectrogram(whitenedTransform, tiling, outputDirectory,uniqueID,startTime, centerTime, \
+wspectrogram(whitenedTransform, tiling, outDir,opts.uniqueID,startTime, centerTime, \
              plotTimeRanges, plotFrequencyRange, \
-             mostSignificantQ, plotNormalizedEnergyRange, \
+             mostSignificantQ, plotNormalizedERange, \
              plotHorizontalResolution);
