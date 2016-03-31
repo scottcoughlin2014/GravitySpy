@@ -1475,7 +1475,7 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 	xticks = np.linspace(xmin,xmax,5)
 	xticklabels = []
 	for i in xticks:
-		xticklabels.append("%1.2f" % (i))
+		xticklabels.append(str(i))
 
 	ymin = min(freq)
 	ymax = max(freq)
@@ -1510,7 +1510,7 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 	cbaxes.set_yticklabels(colorbarticklabels,verticalalignment='center'\
 		, color=myColor)
 	axSpectrogram.xaxis.set_ticks_position('bottom')
-	fig.savefig(outDir + 'spect' + str(dur) +'.png')
+	fig.savefig(outDir + detectorName + '_' + IDstring + '_spectrogram_' + str(dur) +'.png')
 
 ###########
 #def whiten(data, asd):
@@ -1621,10 +1621,11 @@ plot.set_ylabel('Gravitational-wave strain amplitude')
 for iTime in np.arange(0,len(plotTimeRanges)):
     halfTimeRange = plotTimeRanges[iTime]*0.5
     plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-    plot.save('{0}'.format(outDir) + detectorName + '_' + IDstring + '_timeseries_' + str(plotTimeRanges[iTime]) + '.png')
+    plot.save(outDir + detectorName + '_' + IDstring + '_timeseries_' + str(plotTimeRanges[iTime]) + '.png')
 
 # resample data
-data = data.resample(sampleFrequency)
+if data.sample_rate.decompose().value != sampleFrequency:
+    data = data.resample(sampleFrequency)
 
 # generate search tiling
 highPassCutoff = [];
@@ -1644,7 +1645,7 @@ plot.set_ylabel('Gravitational-wave strain amplitude')
 for iTime in np.arange(0,len(plotTimeRanges)):
     halfTimeRange = plotTimeRanges[iTime]*0.5
     plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-    plot.save('{0}' + detectorName + '_' + IDstring + 'highpassfilt' + str(plotTimeRanges[iTime]) + '.png'.format(outDir))
+    plot.save(outDir + detectorName + '_' + IDstring + '_highpassfiltered_' + str(plotTimeRanges[iTime]) + '.png')
 
 # Time to whiten the times series data
 # Our FFTlength is determined by the predetermined whitening duration found in wtile
@@ -1666,7 +1667,7 @@ plot.save('/home/scoughlin/public_html/test3/whitenedwhole.png')
 for iTime in np.arange(0,len(plotTimeRanges)):
     halfTimeRange = plotTimeRanges[iTime]*0.5
     plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-    plot.save('{0}'.format(outDir) + detectorName + '_' + IDstring + '_whitened_' + str(plotTimeRanges[iTime]) + '.png')
+    plot.save(outDir + detectorName + '_' + IDstring + '_whitened_' + str(plotTimeRanges[iTime]) + '.png')
 
 # Extract one-sided frequency-domain conditioned data.
 dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
