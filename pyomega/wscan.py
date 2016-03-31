@@ -545,62 +545,6 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 
 ###############################################################################
 #####################                                  ########################
-#####################   medianmeanaveragespectrum      ########################
-#####################                                  ########################
-###############################################################################
-def medianmeanaveragespectrum(data,fs,N,w):
-
-    ###########################################################################
-    #   Segment data and FFT.
-    ###########################################################################
-
-    # ---- Number of segments (FFTs).
-    Ns = 2*len(data)/N-1;  # -- always odd
-
-    # ---- Number of point by which consecutive segments overlap.
-    Delta = N/2;
-
-    # ---- Sampling time.
-    dt = 1/fs;
-
-    # ---- Enforce unity RMS on the window.
-    w = w/mean(w**2)**0.5;
-
-    # ---- Compute spectrogram of data (array: frequency x time).
-    [S, F] = spectrogram(data,w,Delta,N,fs);
-    # # ---- S is simply the (complex) FFT.  Square this for the PSD.
-    S = (S.real)**2 + (S.imag)**2;
-
-    # ---- Divide time segments into two sets of non-overlapping segments.
-    #      Will compute median PSD on each separately, then average results.
-    oddSegs = np.arange(0,Ns,2)
-    evenSegs = np.arange(1,Ns,2)
-    
-    # ---- Note that oddSegs always has 1 more element than evenSegs.  Drop an
-    #      element from one so that both contain an odd number of elements. 
-    if np.mod(len(oddSegs),2) == 0:
-        oddSegs = oddSegs(np.arange(1,Ns));
-    else:
-        evenSegs = evenSegs(np.arange(1,Ns));
-
-    Ns_odd = len(oddSegs);
-    Ns_even = len(evenSegs);
-    # ---- Compute median-based PSD over each set of segments.
-    if (Ns_even > 0):
-        # ---- Compute median-based PSD over each set of segments.
-        S_odd = median(S[oddSegs],2) / medianbiasfactor(Ns_odd);
-        S_even = median(S[evenSegs],2) / medianbiasfactor(Ns_even);
-        # ---- Take weighted average of the two median estimates.
-        S = (Ns_odd*S_odd + Ns_even*S_even) / (Ns_odd + Ns_even);
-    # End If statement
-
-    # ---- Normalize to physical units.
-    S = 2/(N*fs)*S;
-
-    return S
-
-###############################################################################
-#####################                                  ########################
 #####################           highpassfilter         ########################
 #####################                                  ########################
 ###############################################################################
@@ -635,14 +579,6 @@ def highpassfilt(data,tiling):
     data.value[(dataLength - lpefOrder) :dataLength] = np.zeros(lpefOrder);
 
     return data, lpefOrder
-
-###############################################################################
-#####################                                  ########################
-#####################           makePSD                ########################
-#####################                                  ########################
-###############################################################################
-def makePSD(data,tiling):
-    return
 
 ###############################################################################
 #####################                                  ########################
@@ -1616,6 +1552,7 @@ plotNormalizedERange 	= json.loads(cp.get('parameters','plotNormalizedERange'));
 frameCacheFile		= cp.get('channels','frameCacheFile')
 frameType		= cp.get('channels','frameType')
 channelName		= cp.get('channels','channelName')
+detectorName            = channelName.split(':')[0]
 
 ################################################################################
 #                            hard coded parameters                             #
@@ -1654,7 +1591,7 @@ os.system(system_call)
 ########################################################################
 
 if opts.uniqueID is None:
-	IDstring = opts.eventTime
+	IDstring = str(opts.eventTime)
 else:
 	IDstring = opts.uniqueID
 
@@ -1684,7 +1621,7 @@ plot.set_ylabel('Gravitational-wave strain amplitude')
 for iTime in np.arange(0,len(plotTimeRanges)):
     halfTimeRange = plotTimeRanges[iTime]*0.5
     plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-    plot.save('/home/scoughlin/public_html/test3/timeseries' + str(plotTimeRanges[iTime]) + '.png')
+    plot.save('{0}'.format(outDir) + detectorName + '_' + IDstring + '_timeseries_' + str(plotTimeRanges[iTime]) + '.png')
 
 # resample data
 data = data.resample(sampleFrequency)
@@ -1707,7 +1644,7 @@ plot.set_ylabel('Gravitational-wave strain amplitude')
 for iTime in np.arange(0,len(plotTimeRanges)):
     halfTimeRange = plotTimeRanges[iTime]*0.5
     plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-    plot.save('/home/scoughlin/public_html/test3/highpass' + str(plotTimeRanges[iTime]) + '.png')
+    plot.save('{0}' + detectorName + '_' + IDstring + 'highpassfilt' + str(plotTimeRanges[iTime]) + '.png'.format(outDir))
 
 # Time to whiten the times series data
 # Our FFTlength is determined by the predetermined whitening duration found in wtile
@@ -1729,7 +1666,7 @@ plot.save('/home/scoughlin/public_html/test3/whitenedwhole.png')
 for iTime in np.arange(0,len(plotTimeRanges)):
     halfTimeRange = plotTimeRanges[iTime]*0.5
     plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-    plot.save('/home/scoughlin/public_html/test3/whitened' + str(plotTimeRanges[iTime]) + '.png')
+    plot.save('{0}'.format(outDir) + detectorName + '_' + IDstring + '_whitened_' + str(plotTimeRanges[iTime]) + '.png')
 
 # Extract one-sided frequency-domain conditioned data.
 dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
@@ -1760,7 +1697,7 @@ mostSignificantQ = \
 ############################################################################
 
 # plot whitened spectrogram
-wspectrogram(whitenedTransform, tiling, outDir,opts.uniqueID,startTime, centerTime, \
+wspectrogram(whitenedTransform, tiling, outDir,IDstring,startTime, centerTime, \
              plotTimeRanges, plotFrequencyRange, \
              mostSignificantQ, plotNormalizedERange, \
              plotHorizontalResolution);
