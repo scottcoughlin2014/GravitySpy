@@ -1,7 +1,11 @@
+#!/usr/bin/env python
+
 # ---- Import standard modules to the python path.
 from __future__ import division
 import sys, os, shutil, math, random, copy, getopt, re, string, time
 import ConfigParser, glob, operator, optparse, json
+from gwpy.table.lsctables import SnglBurstTable
+from gwpy.segments import DataQualityFlag
 from glue import segments
 from glue import segmentsUtils
 from glue import pipeline
@@ -41,10 +45,54 @@ def parse_commandline():
     parser.add_option("--uniqueID", action="store_true", default=False,help="Is this image being generated for the GravitySpy project, is so we will create a uniqueID strong to use for labeling images instead of GPS time")
     parser.add_option("--outDir", help="Outdir of omega scan and omega scan webpage (i.e. your html directory)")
     parser.add_option("--NSDF", action="store_true", default=False,help="No framecache file available want to use NSDF server")
+    parser.add_option("--condor", action="store_true", default=False,help="Want to run as condor job?")
     opts, args = parser.parse_args()
 
 
     return opts
+
+###############################################################################
+##########################                            #########################
+##########################   Func: write_subfile     #########################
+##########################                            #########################
+###############################################################################
+
+# Write submission file for the condor job
+
+def write_subfile():
+    os.system('mkdir logs condor')
+    with open('./condor/gravityspy.sub', 'w') as subfile:
+        subfile.write('universe = vanilla\n')
+        subfile.write('executable = {0}/wscan.py\n'.format(os.getcwd()))
+        subfile.write('\n')
+        subfile.write('arguments = "--inifile wini.ini --eventTime $(eventTime) --outDir {0} --uniqueID"\n'.format(opts.outDir))
+        subfile.write('getEnv=True\n')
+        subfile.write('\n')
+        subfile.write('accounting_group_user = scott.coughlin\n')#.format(opts.username))
+        subfile.write('accounting_group = ligo.dev.o1.detchar.ch_categorization.glitchzoo\n')
+        subfile.write('\n')
+        subfile.write('priority = 0\n')
+        subfile.write('request_memory = 1000\n')
+        subfile.write('\n')
+        subfile.write('error = logs/gravityspy-$(jobNumber).err\n')
+        subfile.write('output = logs/gravityspy-$(jobNumber).out\n')
+        subfile.write('notification = never\n')
+        subfile.write('queue 1')
+
+###############################################################################
+##########################                            #########################
+##########################   Func: write_dagfile     #########################
+##########################                            #########################
+###############################################################################
+
+# Write dag_file file for the condor job
+
+def write_dagfile():
+    with open('gravityspy.dag','a+') as dagfile:
+        dagfile.write('JOB {0} ./condor/gravityspy.sub\n'.format(opts.eventTime))
+        dagfile.write('RETRY {0} 3\n'.format(opts.eventTime))
+        dagfile.write('VARS {0} jobNumber="{0}" eventTime="{0}"'.format(opts.eventTime))
+        dagfile.write('\n\n')
 
 ###############################################################################
 ##########################                             ########################
@@ -1528,7 +1576,6 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
 	cbaxes.set_yticklabels(colorbarticklabels,verticalalignment='center'\
 		, color=myColor)
 	axSpectrogram.xaxis.set_ticks_position('bottom')
-	fig.subplots_adjust(bottom=0.18)
 
 	fig.savefig(outDir + detectorName + '_' + IDstring + '_spectrogram_' + str(dur) +'.png')
 
@@ -1542,6 +1589,11 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
 # Parse commandline arguments
 
 opts = parse_commandline()
+
+if opts.condor:
+    write_subfile()
+    write_dagfile()
+    sys.exit()
 
 ################################################################################
 #                                   Parse Ini File                             #
@@ -1565,7 +1617,7 @@ frameCacheFile		= cp.get('channels','frameCacheFile')
 frameType		= cp.get('channels','frameType')
 channelName		= cp.get('channels','channelName')
 detectorName            = channelName.split(':')[0]
-
+det			= detectorName.split('1')[0]
 ################################################################################
 #                            hard coded parameters                             #
 ################################################################################
@@ -1604,34 +1656,42 @@ os.system(system_call)
 ########################################################################
 
 if opts.uniqueID:
-	IDstring = id_generator()
-	giffile = open(outDir +'ID.txt','a+')
-	giffile.write(IDstring + '.gif\n')
-	giffile.close()
-#	manifestfile = outDir + 'manifest.csv'
-#	Durs = np.arange(0,len(plotTimeRanges)).astype('int')
-#	if not os.path.isfile(manifestfile):
-		# Got to open new one and write appropriate header
-		# and first image manifest format
-#		manifest = open(manifestfile,'a+')
-#                manifest.write('subject_id,date,')
-#                for iN in Durs:
-#                    manifest.write('Filename' +str(iN) + ',')
-#                manifest.write('\n')
-		# Data will be reference to build of the code and have nothing
-		# to do with the actual GPS time
-#                manifest.write(IDstring + ',03312016,')
-#                for iN in np.arange(0,len(plotTimeRanges)).astype('int'):
-#                    manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png,')
-#                manifest.write('\n')
-#	else:
-#		manifest = open(manifestfile,'a+')
-                # Data will be reference to build of the code and have nothing
-                # to do with the actual GPS time
-#                manifest.write(IDstring + ',03312016,')
-#                for iN in np.arange(0,len(plotTimeRanges)).astype('int'):
-#                    manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png,')
-#                manifest.write('\n')
+    IDstring = id_generator()
+    # Need to create a manifest in order to upload subject set to website.
+    manifestfile = outDir + 'manifest.csv'
+    Durs = np.arange(0,len(plotTimeRanges)).astype('int')
+    iNN = 0
+    if not os.path.isfile(manifestfile):
+        # Got to open new one and write appropriate header
+        # and first image manifest format
+        manifest = open(manifestfile,'a+')
+        manifest.write('subject_id,date,')
+        for iN in Durs:
+            iNN = iNN +1
+            if iNN == Durs.size:
+                manifest.write('Filename' +str(iN) + '\n')
+            else:
+                manifest.write('Filename' +str(iN) + ',')
+
+        # Date will be reference to build of the code and have nothing to do with the actual GPS time
+        iNN = 0
+        manifest.write(IDstring + ',03312016,')
+        for iN in Durs:
+            iNN = iNN +1
+            if iNN == Durs.size:
+                manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png\n')
+            else:
+                manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png,')
+    else:
+        manifest = open(manifestfile,'a+')
+        manifest.write(IDstring + ',03312016,')
+        for iN in Durs:
+            iNN = iNN +1
+            if iNN == Durs.size:
+                manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png\n')
+            else:
+                manifest.write(detectorName + '_' + IDstring + '_spectrogram_' +
+ str(plotTimeRanges[iN]) +'.png,')
 else:
 	IDstring = str(opts.eventTime)
 
@@ -1652,9 +1712,9 @@ stopTime = startTime + blockTime;
 if opts.NSDF:
 	data = TimeSeries.fetch(channelName,startTime,stopTime)
 else:
-	#connection = datafind.GWDataFindHTTPConnection()	
-	#cache = connection.find_frame_urls(det, frameType, startTime, stopTime, urltype='file')
-	data = TimeSeries.read(frameCacheFile,channelName, format='gwf',start=startTime,end=stopTime)
+	connection = datafind.GWDataFindHTTPConnection()	
+	cache = connection.find_frame_urls(det, frameType, startTime, stopTime, urltype='file')
+	data = TimeSeries.read(cache,channelName, format='gwf',start=startTime,end=stopTime)
 
 # Plot Time Series at given plot durations
 plot = data.plot()
