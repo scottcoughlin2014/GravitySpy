@@ -12,6 +12,7 @@ import scipy
 from scipy.interpolate import interp1d,InterpolatedUnivariateSpline
 import rlcompleter
 import pdb
+from glue import datafind
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import matplotlib.image as mpimg
@@ -20,6 +21,7 @@ import matplotlib.cm as cm
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import pylab
 from matplotlib import rcParams
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import ScalarFormatter
 pdb.Pdb.complete = rlcompleter.Completer(locals()).complete
 ###############################################################################
@@ -36,13 +38,22 @@ def parse_commandline():
     parser = optparse.OptionParser()
     parser.add_option("--inifile", help="Name of ini file of params")
     parser.add_option("--eventTime", type=float,help="Trigger time of the glitch")
-    parser.add_option("--uniqueID", help="Unique ID of the glitch (from Gravity Spy project)")
-    parser.add_option("--outDir", help="Outdir of omega scan and omega scan webpage (i.e. you html directory)")
+    parser.add_option("--uniqueID", action="store_true", default=False,help="Is this image being generated for the GravitySpy project, is so we will create a uniqueID strong to use for labeling images instead of GPS time")
+    parser.add_option("--outDir", help="Outdir of omega scan and omega scan webpage (i.e. your html directory)")
     parser.add_option("--NSDF", action="store_true", default=False,help="No framecache file available want to use NSDF server")
     opts, args = parser.parse_args()
 
 
     return opts
+
+###############################################################################
+##########################                             ########################
+##########################   Func: id_generator        ########################
+##########################                             ########################
+###############################################################################
+
+def id_generator(size=10, chars=string.ascii_uppercase + string.digits +string.ascii_lowercase):
+    return ''.join(random.SystemRandom().choice(chars) for _ in range(size))
 
 ###############################################################################
 ##########################                             ########################
@@ -1344,7 +1355,7 @@ def wmeasure(transforms, tiling, startTime, \
 ##########################                     ################################
 ###############################################################################
 
-def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
+def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
            referenceTime, timeRange, frequencyRange, qRange,\
 	 	normalizedEnergyRange, horizontalResolution):
 
@@ -1466,7 +1477,13 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 
 	axSpectrogram.set_xlabel("Time (s)", fontsize=mylabelfontsize, color=myColor)
 	axSpectrogram.set_ylabel("Freq (Hz)", fontsize=mylabelfontsize, color=myColor)
-	axSpectrogram.set_title("H1",fontsize=mylabelfontsize, color=myColor)  
+	if detectorName == 'H1':
+		title = "Hanford"
+	elif detectorName == 'L1':
+		title = "Livingston"
+	else:
+		title = "VIRGO"
+	axSpectrogram.set_title(title,fontsize=mylabelfontsize, color=myColor)  
 
 	 
 	xmin = min(time)
@@ -1481,7 +1498,7 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 	ymax = max(freq)
 
 	#myvmax = np.max(Energ)
-	myvmax = 25.5
+	myvmax = np.max(normalizedEnergyRange)
 	cmap = cm.get_cmap(name='viridis')
 	myInterp='bicubic'
 
@@ -1494,13 +1511,14 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 	ax.set_major_formatter(ScalarFormatter())
 	axSpectrogram.ticklabel_format(axis='y', style='plain')
 
-	print xticklabels	
 	axSpectrogram.set_xticks(xticks)
 	axSpectrogram.set_xticklabels(xticklabels,fontsize=myfontsize)
 
 	# Create Colorbar
 	# Make an axis: [left, bottom, width, height], plotting area from 0 to 1
-	cbaxes = fig.add_axes([0.905,0.15,0.04,0.75]) 
+	#cbaxes = fig.add_axes([0.905,0.15,0.04,0.75]) 
+	divider = make_axes_locatable(fig.gca())
+        cbaxes = divider.append_axes("right", "5%", pad="3%")
 	colorbarticks=range(0,30,5)
 	colorbarticklabels=["0","5","10","15","20","25"]
 	colorbarlabel = 'Normalized energy'
@@ -1510,17 +1528,11 @@ def wspectrogram(transforms, tiling, outputDirectory,uniqueID,startTime, \
 	cbaxes.set_yticklabels(colorbarticklabels,verticalalignment='center'\
 		, color=myColor)
 	axSpectrogram.xaxis.set_ticks_position('bottom')
+	fig.subplots_adjust(bottom=0.18)
+
 	fig.savefig(outDir + detectorName + '_' + IDstring + '_spectrogram_' + str(dur) +'.png')
 
-###########
-#def whiten(data, asd):
-#    freq_data = data.fft()
-#    assert asd.df == freq_data.df
-#    freq_data /= asd
-    # FIXME: No ifft method on the frequency data
-#    return freq_data.ifft()
-#white_data = whiten(data, asd)
-#############
+
 ###############################################################################
 ##########################                     ################################
 ##########################      MAIN CODE      ################################
@@ -1587,13 +1599,41 @@ os.system(system_call)
 
 ########################################################################
 #     Determine if this is a normal omega scan or a Gravityspy         #
-#	omega scan with unique ID                                      #
+#	omega scan with unique ID. If Gravity spy then additional      #
+#	files and what not must be generated                           #
 ########################################################################
 
-if opts.uniqueID is None:
-	IDstring = str(opts.eventTime)
+if opts.uniqueID:
+	IDstring = id_generator()
+	giffile = open(outDir +'ID.txt','a+')
+	giffile.write(IDstring + '.gif\n')
+	giffile.close()
+#	manifestfile = outDir + 'manifest.csv'
+#	Durs = np.arange(0,len(plotTimeRanges)).astype('int')
+#	if not os.path.isfile(manifestfile):
+		# Got to open new one and write appropriate header
+		# and first image manifest format
+#		manifest = open(manifestfile,'a+')
+#                manifest.write('subject_id,date,')
+#                for iN in Durs:
+#                    manifest.write('Filename' +str(iN) + ',')
+#                manifest.write('\n')
+		# Data will be reference to build of the code and have nothing
+		# to do with the actual GPS time
+#                manifest.write(IDstring + ',03312016,')
+#                for iN in np.arange(0,len(plotTimeRanges)).astype('int'):
+#                    manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png,')
+#                manifest.write('\n')
+#	else:
+#		manifest = open(manifestfile,'a+')
+                # Data will be reference to build of the code and have nothing
+                # to do with the actual GPS time
+#                manifest.write(IDstring + ',03312016,')
+#                for iN in np.arange(0,len(plotTimeRanges)).astype('int'):
+#                    manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png,')
+#                manifest.write('\n')
 else:
-	IDstring = opts.uniqueID
+	IDstring = str(opts.eventTime)
 
 ##############################################################################
 #               Process Channel Data                                         #
@@ -1612,6 +1652,8 @@ stopTime = startTime + blockTime;
 if opts.NSDF:
 	data = TimeSeries.fetch(channelName,startTime,stopTime)
 else:
+	#connection = datafind.GWDataFindHTTPConnection()	
+	#cache = connection.find_frame_urls(det, frameType, startTime, stopTime, urltype='file')
 	data = TimeSeries.read(frameCacheFile,channelName, format='gwf',start=startTime,end=stopTime)
 
 # Plot Time Series at given plot durations
