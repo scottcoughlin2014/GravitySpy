@@ -39,8 +39,7 @@ pdb.Pdb.complete = rlcompleter.Completer(locals()).complete
 # Definite Command line arguments here
 
 def parse_commandline():
-    """
-    Parse the options given on the command-line.
+    """Parse the options given on the command-line.
     """
     parser = optparse.OptionParser()
     parser.add_option("--inifile", help="Name of ini file of params")
@@ -128,9 +127,9 @@ def nextpow2(i):
 ##########################                             ########################
 ###############################################################################
 
-def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
-                        searchMaximumEnergyLoss, highPassCutoff, lowPassCutoff, \
-                        whiteningDuration, transientFactor):
+def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency,
+          searchMaximumEnergyLoss, highPassCutoff, lowPassCutoff,
+          whiteningDuration, transientFactor):
     # extract minimum and maximum Q from Q range
     minimumQ = searchQRange[0]
     maximumQ = searchQRange[1]
@@ -645,7 +644,7 @@ def highpassfilt(data,tiling):
 #####################                                  ########################
 ###############################################################################
 
-def wtransform(data, tiling, outlierFactor, \
+def wtransform(data, tiling, outlierFactor,
                analysisMode, channelNames, coefficients, coordinate):
 
     # determine number of channels
@@ -925,80 +924,79 @@ def wtransform(data, tiling, outlierFactor, \
 ##########################                     ################################
 ###############################################################################
 
-def wmeasure(transforms, tiling, startTime, \
-                                 referenceTime, timeRange, frequencyRange, \
-                                 qRange):
-    # WMEASURE Measure peak and weighted signal properties from Q transforms
-    #
-    # WMEASURE reports the peak and significance weighted mean properties of Q
-    # transformed signals within the specified time-frequency region.
-    #
-    # usage:
-    #
-    #   measurements = wmeasure(transforms, tiling, startTime, referenceTime, ...
-    #                           timeRange, frequencyRange, qRange, debugLevel)
-    #
-    #   transforms           cell array of input Q transform structures
-    #   tiling               discrete Q transform tiling structure from WTILE
-    #   startTime            GPS start time of Q transformed data
-    #   referenceTime        reference time for time range to search over
-    #   timeRange            vector range of relative times to search over
-    #   frequencyRange       vector range of frequencies to search over
-    #   qRange               scalar Q or vector range of Qs to search over
-    #   debugLevel           verboseness of debug output
-    #
-    #   measurements         cell array of measured signal properties
-    #
-    # WMEASURE returns a cell array of measured signal properties, with one cell per
-    # channel.  The measured signal properties are returned as a structure that
-    # contains the following fields.
-    #
-    #   peakTime                 center time of peak tile [gps seconds]
-    #   peakFrequency            center frequency of peak tile [Hz]
-    #   peakQ                    quality factor of peak tile []
-    #   peakDuration             duration of peak tile [seconds]
-    #   peakBandwidth            bandwidth of peak tile [Hz]
-    #   peakNormalizedEnergy     normalized energy of peak tile []
-    #   peakAmplitude            amplitude of peak tile [Hz^-1/2]
-    #   signalTime               weighted central time [gps seconds]
-    #   signalFrequency          weighted central frequency [Hz]
-    #   signalDuration           weighted duration [seconds]
-    #   signalBandwidth          weighted bandwidth [Hz]
-    #   signalNormalizedEnergy   total normalized energy []
-    #   signalAmplitude          total signal amplitude [Hz^-1/2]
-    #   signalArea               measurement time frequency area []
-    #
-    # The user can focus on a subset of the times and frequencies available in
-    # the transform data by specifying a desired range of central times,
-    # central frequencies, and Qs to threshold on.  Ranges should be specified
-    # as a two component vector, consisting of a minimum and maximum value.
-    # Alternatively, if only a single Q is specified, WMEASURE is only applied to
-    # the time-frequency plane which has the nearest value of Q in a
-    # logarithmic sense to the requested value.
-    #
-    # To determine the range of central times to search over, WMEASURE requires
-    # the start time of the transformed data in addition to a reference time
-    # and a relative time range.  Both the start time and reference time should
-    # be specified as absolute quantities, while the range of times to analyze
-    # should be specified relative to the requested reference time.
-    #
-    # By default, WMEASURE is applied to all available frequencies and Qs, and the
-    # reference time and relative time range arguments are set to exclude data
-    # potentially corrupted by filter transients as identified by the transient
-    # duration field of the tiling structure.  The default value can be
-    # obtained for any argument by passing the empty matrix [].
-    #
-    # See also WTILE, WCONDITION, WTRANSFORM, WTHRESHOLD, WSELECT, WEXAMPLE, WSCAN,
-    # and WSEARCH.
+def wmeasure(transforms, tiling, startTime,
+             referenceTime, timeRange, frequencyRange,
+             qRange):
+    """Measure peak and weighted signal properties from Q transforms
 
-    # Notes:
-    # 1. Compute absolute or normalized energy weighted signal properties?
-    # 2. Only include tiles with Z>Z0 in integrands?
+    WMEASURE reports the peak and significance weighted mean properties of Q
+    transformed signals within the specified time-frequency region.
 
-    # Shourov K. Chatterji
-    # shourov@ligo.caltech.edu
+    usage:
 
-    # $Id: wmeasure.m 1716 2009-04-10 17:00:49Z jrollins $
+      measurements = wmeasure(transforms, tiling, startTime, referenceTime, ...
+                              timeRange, frequencyRange, qRange, debugLevel)
+
+      transforms           cell array of input Q transform structures
+      tiling               discrete Q transform tiling structure from WTILE
+      startTime            GPS start time of Q transformed data
+      referenceTime        reference time for time range to search over
+      timeRange            vector range of relative times to search over
+      frequencyRange       vector range of frequencies to search over
+      qRange               scalar Q or vector range of Qs to search over
+      debugLevel           verboseness of debug output
+
+      measurements         cell array of measured signal properties
+
+    WMEASURE returns a cell array of measured signal properties, with one cell per
+    channel.  The measured signal properties are returned as a structure that
+    contains the following fields.
+
+      peakTime                 center time of peak tile [gps seconds]
+      peakFrequency            center frequency of peak tile [Hz]
+      peakQ                    quality factor of peak tile []
+      peakDuration             duration of peak tile [seconds]
+      peakBandwidth            bandwidth of peak tile [Hz]
+      peakNormalizedEnergy     normalized energy of peak tile []
+      peakAmplitude            amplitude of peak tile [Hz^-1/2]
+      signalTime               weighted central time [gps seconds]
+      signalFrequency          weighted central frequency [Hz]
+      signalDuration           weighted duration [seconds]
+      signalBandwidth          weighted bandwidth [Hz]
+      signalNormalizedEnergy   total normalized energy []
+      signalAmplitude          total signal amplitude [Hz^-1/2]
+      signalArea               measurement time frequency area []
+
+    The user can focus on a subset of the times and frequencies available in
+    the transform data by specifying a desired range of central times,
+    central frequencies, and Qs to threshold on.  Ranges should be specified
+    as a two component vector, consisting of a minimum and maximum value.
+    Alternatively, if only a single Q is specified, WMEASURE is only applied to
+    the time-frequency plane which has the nearest value of Q in a
+    logarithmic sense to the requested value.
+
+    To determine the range of central times to search over, WMEASURE requires
+    the start time of the transformed data in addition to a reference time
+    and a relative time range.  Both the start time and reference time should
+    be specified as absolute quantities, while the range of times to analyze
+    should be specified relative to the requested reference time.
+
+    By default, WMEASURE is applied to all available frequencies and Qs, and the
+    reference time and relative time range arguments are set to exclude data
+    potentially corrupted by filter transients as identified by the transient
+    duration field of the tiling structure.  The default value can be
+    obtained for any argument by passing the empty matrix [].
+
+    See also WTILE, WCONDITION, WTRANSFORM, WTHRESHOLD, WSELECT, WEXAMPLE, WSCAN,
+    and WSEARCH.
+
+    Notes:
+    1. Compute absolute or normalized energy weighted signal properties?
+    2. Only include tiles with Z>Z0 in integrands?
+
+    Shourov K. Chatterji
+    shourov@ligo.caltech.edu
+    """
 
     ###########################################################################
     #                   process command line arguments                        #
@@ -1405,11 +1403,12 @@ def wmeasure(transforms, tiling, startTime, \
 ##########################                     ################################
 ###############################################################################
 
-def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
-           referenceTime, timeRange, frequencyRange, qRange,\
-         normalizedEnergyRange, horizontalResolution):
+def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime,
+                 referenceTime, timeRange, frequencyRange, qRange,
+                 normalizedEnergyRange, horizontalResolution):
 
-# WSPECTROGRAM Display time-frequency Q transform spectrograms
+    """Display time-frequency Q transform spectrograms
+    """
 
     ############################################################################
     #                      identify q plane to display                         #
