@@ -1451,12 +1451,11 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
     normalizedEnergies = {}
     # initialize matrix of normalized energies for display
     for iN in np.arange(0,len(timeRange)):
-    timestr = 'time' + str(iN)
+        timestr = 'time' + str(iN)
         normalizedEnergies[timestr] = np.zeros((numberOfRows, horizontalResolution));
-
-    timeRange1 = {}
-    times      = {}
-
+        timeRange1 = {}
+        times      = {}
+        
     for iN in np.arange(0,len(timeRange)):
         timestr = 'time' + str(iN)
         # vector of times to display
@@ -1471,13 +1470,13 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
 
         # index of row in tiling structure
         rowIndex = rowIndices[row];
-    rowstr   = 'row' + str(float(rowIndex))
+        rowstr   = 'row' + str(float(rowIndex))
 
         # vector of times in plane
         rowTimes = \
-           np.arange(0,tiling[planeIndexstr][rowstr]['numberOfTiles'])\
-          * tiling[planeIndexstr][rowstr]['timeStep'] + \
-             (startTime - referenceTime);
+            np.arange(0,tiling[planeIndexstr][rowstr]['numberOfTiles'])\
+            * tiling[planeIndexstr][rowstr]['timeStep'] + \
+            (startTime - referenceTime);
 
         # find tiles within requested time range
         for iN in np.arange(0,len(timeRange)):
@@ -1485,7 +1484,8 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
             # vector of times to display
             padTime = 1.5 * tiling[planeIndexstr][rowstr]['timeStep'];
             tileIndices = np.logical_and((rowTimes >= \
-        np.min(timeRange1[timestr]) - padTime),(rowTimes <= np.max(timeRange1[timestr]) + padTime));
+                                  np.min(timeRange1[timestr]) - padTime),\
+                                         (rowTimes <= np.max(timeRange1[timestr]) + padTime));
 
             # vector of times to display
             rowTimestemp = rowTimes[tileIndices];
@@ -1493,9 +1493,9 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
             # corresponding tile normalized energies
             rowNormalizedEnergies = transforms['channel0'][planeIndexstr][rowstr]['normalizedEnergies'][tileIndices];
             # interpolate to desired horizontal resolution
-        f = InterpolatedUnivariateSpline(rowTimestemp, rowNormalizedEnergies);
-        
-         rowNormalizedEnergies = f(times[timestr]);
+            f = InterpolatedUnivariateSpline(rowTimestemp, rowNormalizedEnergies);
+            
+            rowNormalizedEnergies = f(times[timestr]);
 
             # insert into display matrix
             normalizedEnergies[timestr][row, :] = rowNormalizedEnergies;
@@ -1513,72 +1513,72 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
         time = times[timestr]
         freq = frequencies
         Energ = normalizedEnergies[timestr]
-
-    fig, axSpectrogram = plt.subplots()
-
-    # Make Omega Spectrogram
-
-    axSpectrogram.xaxis.set_ticks_position('bottom')
-
-    myfontsize = 15
-    myColor = 'k'
-    mylabelfontsize = 20
-
-    axSpectrogram.set_xlabel("Time (s)", fontsize=mylabelfontsize, color=myColor)
-    axSpectrogram.set_ylabel("Freq (Hz)", fontsize=mylabelfontsize, color=myColor)
-    if detectorName == 'H1':
-        title = "Hanford"
-    elif detectorName == 'L1':
-        title = "Livingston"
-    else:
-        title = "VIRGO"
-    axSpectrogram.set_title(title,fontsize=mylabelfontsize, color=myColor)  
-
-     
-    xmin = min(time)
-    xmax = max(time)
-    dur = xmax-xmin
-    xticks = np.linspace(xmin,xmax,5)
-    xticklabels = []
-    for i in xticks:
-        xticklabels.append(str(i))
-
-    ymin = min(freq)
-    ymax = max(freq)
-
-    #myvmax = np.max(Energ)
-    myvmax = np.max(normalizedEnergyRange)
-    cmap = cm.get_cmap(name='viridis')
-    myInterp='bicubic'
-
-    cax = axSpectrogram.matshow(Energ, cmap=cmap, \
+        
+        fig, axSpectrogram = plt.subplots()
+        
+        # Make Omega Spectrogram
+        
+        axSpectrogram.xaxis.set_ticks_position('bottom')
+        
+        myfontsize = 15
+        myColor = 'k'
+        mylabelfontsize = 20
+        
+        axSpectrogram.set_xlabel("Time (s)", fontsize=mylabelfontsize, color=myColor)
+        axSpectrogram.set_ylabel("Freq (Hz)", fontsize=mylabelfontsize, color=myColor)
+        if detectorName == 'H1':
+            title = "Hanford"
+        elif detectorName == 'L1':
+            title = "Livingston"
+        else:
+            title = "VIRGO"
+        
+        axSpectrogram.set_title(title,fontsize=mylabelfontsize, color=myColor)
+        
+        xmin = min(time)
+        xmax = max(time)
+        dur = xmax-xmin
+        xticks = np.linspace(xmin,xmax,5)
+        xticklabels = []
+        for i in xticks:
+            xticklabels.append(str(i))
+            
+        ymin = min(freq)
+        ymax = max(freq)
+        
+        #myvmax = np.max(Energ)
+        myvmax = np.max(normalizedEnergyRange)
+        cmap = cm.get_cmap(name='viridis')
+        myInterp='bicubic'
+        
+        cax = axSpectrogram.matshow(Energ, cmap=cmap, \
                            interpolation=myInterp,aspect='auto', origin='lower', \
                            vmin=0.0,extent=[xmin,xmax,ymin,ymax],vmax=myvmax)
-
-    axSpectrogram.set_yscale('log', basey=2, subsy=None)
-    ax = plt.gca().yaxis
-    ax.set_major_formatter(ScalarFormatter())
-    axSpectrogram.ticklabel_format(axis='y', style='plain')
-
-    axSpectrogram.set_xticks(xticks)
-    axSpectrogram.set_xticklabels(xticklabels,fontsize=myfontsize)
-
-    # Create Colorbar
-    # Make an axis: [left, bottom, width, height], plotting area from 0 to 1
-    #cbaxes = fig.add_axes([0.905,0.15,0.04,0.75]) 
-    divider = make_axes_locatable(fig.gca())
+        
+        axSpectrogram.set_yscale('log', basey=2, subsy=None)
+        ax = plt.gca().yaxis
+        ax.set_major_formatter(ScalarFormatter())
+        axSpectrogram.ticklabel_format(axis='y', style='plain')
+        
+        axSpectrogram.set_xticks(xticks)
+        axSpectrogram.set_xticklabels(xticklabels,fontsize=myfontsize)
+        
+        # Create Colorbar
+        # Make an axis: [left, bottom, width, height], plotting area from 0 to 1
+        #cbaxes = fig.add_axes([0.905,0.15,0.04,0.75]) 
+        divider = make_axes_locatable(fig.gca())
         cbaxes = divider.append_axes("right", "5%", pad="3%")
-    colorbarticks=range(0,30,5)
-    colorbarticklabels=["0","5","10","15","20","25"]
-    colorbarlabel = 'Normalized energy'
-
-    cbar   = fig.colorbar(cax, ticks=colorbarticks,cax=cbaxes)
-    cbar.set_label(label=colorbarlabel, size=myfontsize, color=myColor)
-    cbaxes.set_yticklabels(colorbarticklabels,verticalalignment='center'\
-        , color=myColor)
-    axSpectrogram.xaxis.set_ticks_position('bottom')
-
-    fig.savefig(outDir + detectorName + '_' + IDstring + '_spectrogram_' + str(dur) +'.png')
+        colorbarticks=range(0,30,5)
+        colorbarticklabels=["0","5","10","15","20","25"]
+        colorbarlabel = 'Normalized energy'
+        
+        cbar   = fig.colorbar(cax, ticks=colorbarticks,cax=cbaxes)
+        cbar.set_label(label=colorbarlabel, size=myfontsize, color=myColor)
+        cbaxes.set_yticklabels(colorbarticklabels,verticalalignment='center'\
+                               , color=myColor)
+        axSpectrogram.xaxis.set_ticks_position('bottom')
+        
+        fig.savefig(outDir + detectorName + '_' + IDstring + '_spectrogram_' + str(dur) +'.png')
 
 
 ###############################################################################
@@ -1605,20 +1605,20 @@ cp = ConfigParser.ConfigParser()
 cp.read(opts.inifile)
 
 # ---- Read needed variables from [parameters] and [channels] sections.
-sampleFrequency     = int(cp.get('parameters','sampleFrequency'));
-blockTime         = int(cp.get('parameters','blockTime'));
+sampleFrequency          = int(cp.get('parameters','sampleFrequency'));
+blockTime                = int(cp.get('parameters','blockTime'));
 searchFrequencyRange     = json.loads(cp.get('parameters','searchFrequencyRange'));
-searchQRange        = json.loads( cp.get('parameters','searchQRange'));
-searchMaximumEnergyLoss = float(cp.get('parameters','searchMaximumEnergyLoss'));
+searchQRange             = json.loads( cp.get('parameters','searchQRange'));
+searchMaximumEnergyLoss  = float(cp.get('parameters','searchMaximumEnergyLoss'));
 searchWindowDuration     = float(cp.get('parameters','searchWindowDuration'));
-plotTimeRanges         = json.loads(cp.get('parameters','plotTimeRanges'));
-plotFrequencyRange     = json.loads(cp.get('parameters','plotFrequencyRange'));
+plotTimeRanges           = json.loads(cp.get('parameters','plotTimeRanges'));
+plotFrequencyRange       = json.loads(cp.get('parameters','plotFrequencyRange'));
 plotNormalizedERange     = json.loads(cp.get('parameters','plotNormalizedERange'));
-frameCacheFile        = cp.get('channels','frameCacheFile')
-frameType        = cp.get('channels','frameType')
-channelName        = cp.get('channels','channelName')
-detectorName            = channelName.split(':')[0]
-det            = detectorName.split('1')[0]
+frameCacheFile           = cp.get('channels','frameCacheFile')
+frameType                = cp.get('channels','frameType')
+channelName              = cp.get('channels','channelName')
+detectorName             = channelName.split(':')[0]
+det                      = detectorName.split('1')[0]
 ################################################################################
 #                            hard coded parameters                             #
 ################################################################################
