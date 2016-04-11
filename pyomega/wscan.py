@@ -1290,7 +1290,7 @@ def wmeasure(transforms, tiling, startTime, \
       
         # begin loop over channels
         for channel in np.arange(0,numberOfChannels):
-        channelstr = 'channel' + str(channel)
+            channelstr = 'channel' + str(channel)
             # normalize weighted signal properties by total normalized energy
             if measurements[channelstr]['signalAmplitude'][plane] != 0:
                 
