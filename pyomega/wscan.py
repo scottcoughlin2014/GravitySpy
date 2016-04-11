@@ -45,6 +45,9 @@ def parse_commandline():
     parser.add_option("--outDir", help="Outdir of omega scan and omega scan webpage (i.e. your html directory)")
     parser.add_option("--NSDF", action="store_true", default=False,help="No framecache file available want to use NSDF server")
     parser.add_option("--condor", action="store_true", default=False,help="Want to run as condor job?")
+    parser.add_option("--plot-whitened-timeseries", action="store_true", default=False,help="Plot whitened timeseries")
+    parser.add_option("--plot-highpassfiltered-timeseries", action="store_true", default=False,help="Plot high pass filtered timeseries")
+    parser.add_option("--plot-raw-timeseries", action="store_true", default=False,help="Plot raw timeseries")
     opts, args = parser.parse_args()
 
 
@@ -1718,13 +1721,14 @@ else:
     data = TimeSeries.read(cache,channelName, format='gwf',start=startTime,end=stopTime)
 
 # Plot Time Series at given plot durations
-plot = data.plot()
-plot.set_title('TimeSeries')
-plot.set_ylabel('Gravitational-wave strain amplitude')
-for iTime in np.arange(0,len(plotTimeRanges)):
-    halfTimeRange = plotTimeRanges[iTime]*0.5
-    plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-    plot.save(outDir + detectorName + '_' + IDstring + '_timeseries_' + str(plotTimeRanges[iTime]) + '.png')
+if opts.plot_raw_timeseries:
+    plot = data.plot()
+    plot.set_title('TimeSeries')
+    plot.set_ylabel('Gravitational-wave strain amplitude')
+    for iTime in np.arange(0,len(plotTimeRanges)):
+        halfTimeRange = plotTimeRanges[iTime]*0.5
+        plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
+        plot.save(outDir + detectorName + '_' + IDstring + '_timeseries_' + str(plotTimeRanges[iTime]) + '.png')
 
 # resample data
 if data.sample_rate.decompose().value != sampleFrequency:
