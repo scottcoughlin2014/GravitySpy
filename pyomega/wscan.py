@@ -179,33 +179,27 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 
     # check for valid time range
     if blockTime < 0:
-        print('negative time range')
-        sys.exit()
+        raise ValueError('negative time range')
 
     # check for valid Q range
     if minimumQ > maximumQ:
-        print('minimum Q is larger than maximum Q')
-        sys.exit()
+        raise ValueError('minimum Q is larger than maximum Q')
 
     # check for valid frequency range
     if minimumFrequency > maximumFrequency:
-        print('minimum frequency exceeds maximum frequency')
-        sys.exit()
+        raise ValueError('minimum frequency exceeds maximum frequency')
 
     # check for valid minimum Q
     if minimumQ < minimumAllowableQ:
-        print('minimum Q less than {0}'.format(minimumAllowableQ))
-        sys.exit()
+        raise ValueError('minimum Q less than {0}'.format(minimumAllowableQ))
 
     # check for reasonable maximum mismatch parameter
     if searchMaximumEnergyLoss > maximumAllowableMismatch:
-        print('maximum mismatch exceeds {0}'.format(maximumAllowableMismatch))
-        sys.exit()
+        raise ValueError('maximum mismatch exceeds {0}'.format(maximumAllowableMismatch))
 
     # check for integer power of two data length
     if not np.mod(np.log(blockTime * sampleFrequency) / np.log(2), 1) == 0:
-        print('data length is not an integer power of two')
-        sys.exit()
+        raise ValueError('data length is not an integer power of two')
 
     ############################################################################
     #                          determine Q planes                              #
@@ -245,18 +239,16 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     # check for valid minimum frequency
     if (not minimumFrequency == 0) and \
         (minimumFrequency < minimumAllowableFrequency):
-            print('requested minimum frequency of {0} Hz  \
+            raise ValueError('requested minimum frequency of {0} Hz  \
             less than minimum allowable frequency of {1} Hz').format(\
                                  minimumFrequency, minimumAllowableFrequency)
-            sys.exit()
 
     # check for valid maximum frequency
     if (not np.isinf(maximumFrequency)) and \
         (maximumFrequency > maximumAllowableFrequency):
-            print('requested maximum frequency of {0} Hz  \
+            raise ValueError('requested maximum frequency of {0} Hz  \
             less than maximum allowable frequency of {1} Hz').format(\
                                  maximumFrequency, maximumAllowableFrequency)
-            sys.exit()
 
     tiling = {}
     tiling["generalparams"] = {}
@@ -659,13 +651,13 @@ def wtransform(data, tiling, outlierFactor, \
 
     # validate data length and force row vectors
     if len(data) != halfDataLength:
-        sys.exit()
+        raise ValueError('data wrong length')
 
     # determine number of sites
     numberOfSites = 1
 
     if len(coordinate) != 2:
-        sys.exit()
+        raise ValueError('wrong number of coordinates')
 
     #######################################################################
     #                   Define some variables                             #
