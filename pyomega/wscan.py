@@ -39,8 +39,7 @@ pdb.Pdb.complete = rlcompleter.Completer(locals()).complete
 # Definite Command line arguments here
 
 def parse_commandline():
-    """
-    Parse the options given on the command-line.
+    """Parse the options given on the command-line.
     """
     parser = optparse.OptionParser()
     parser.add_option("--inifile", help="Name of ini file of params")
@@ -128,9 +127,9 @@ def nextpow2(i):
 ##########################                             ########################
 ###############################################################################
 
-def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
-                        searchMaximumEnergyLoss, highPassCutoff, lowPassCutoff, \
-                        whiteningDuration, transientFactor):
+def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency,
+          searchMaximumEnergyLoss, highPassCutoff, lowPassCutoff,
+          whiteningDuration, transientFactor):
     # extract minimum and maximum Q from Q range
     minimumQ = searchQRange[0]
     maximumQ = searchQRange[1]
@@ -645,7 +644,7 @@ def highpassfilt(data,tiling):
 #####################                                  ########################
 ###############################################################################
 
-def wtransform(data, tiling, outlierFactor, \
+def wtransform(data, tiling, outlierFactor,
                analysisMode, channelNames, coefficients, coordinate):
 
     # determine number of channels
@@ -925,80 +924,79 @@ def wtransform(data, tiling, outlierFactor, \
 ##########################                     ################################
 ###############################################################################
 
-def wmeasure(transforms, tiling, startTime, \
-                                 referenceTime, timeRange, frequencyRange, \
-                                 qRange):
-    # WMEASURE Measure peak and weighted signal properties from Q transforms
-    #
-    # WMEASURE reports the peak and significance weighted mean properties of Q
-    # transformed signals within the specified time-frequency region.
-    #
-    # usage:
-    #
-    #   measurements = wmeasure(transforms, tiling, startTime, referenceTime, ...
-    #                           timeRange, frequencyRange, qRange, debugLevel)
-    #
-    #   transforms           cell array of input Q transform structures
-    #   tiling               discrete Q transform tiling structure from WTILE
-    #   startTime            GPS start time of Q transformed data
-    #   referenceTime        reference time for time range to search over
-    #   timeRange            vector range of relative times to search over
-    #   frequencyRange       vector range of frequencies to search over
-    #   qRange               scalar Q or vector range of Qs to search over
-    #   debugLevel           verboseness of debug output
-    #
-    #   measurements         cell array of measured signal properties
-    #
-    # WMEASURE returns a cell array of measured signal properties, with one cell per
-    # channel.  The measured signal properties are returned as a structure that
-    # contains the following fields.
-    #
-    #   peakTime                 center time of peak tile [gps seconds]
-    #   peakFrequency            center frequency of peak tile [Hz]
-    #   peakQ                    quality factor of peak tile []
-    #   peakDuration             duration of peak tile [seconds]
-    #   peakBandwidth            bandwidth of peak tile [Hz]
-    #   peakNormalizedEnergy     normalized energy of peak tile []
-    #   peakAmplitude            amplitude of peak tile [Hz^-1/2]
-    #   signalTime               weighted central time [gps seconds]
-    #   signalFrequency          weighted central frequency [Hz]
-    #   signalDuration           weighted duration [seconds]
-    #   signalBandwidth          weighted bandwidth [Hz]
-    #   signalNormalizedEnergy   total normalized energy []
-    #   signalAmplitude          total signal amplitude [Hz^-1/2]
-    #   signalArea               measurement time frequency area []
-    #
-    # The user can focus on a subset of the times and frequencies available in
-    # the transform data by specifying a desired range of central times,
-    # central frequencies, and Qs to threshold on.  Ranges should be specified
-    # as a two component vector, consisting of a minimum and maximum value.
-    # Alternatively, if only a single Q is specified, WMEASURE is only applied to
-    # the time-frequency plane which has the nearest value of Q in a
-    # logarithmic sense to the requested value.
-    #
-    # To determine the range of central times to search over, WMEASURE requires
-    # the start time of the transformed data in addition to a reference time
-    # and a relative time range.  Both the start time and reference time should
-    # be specified as absolute quantities, while the range of times to analyze
-    # should be specified relative to the requested reference time.
-    #
-    # By default, WMEASURE is applied to all available frequencies and Qs, and the
-    # reference time and relative time range arguments are set to exclude data
-    # potentially corrupted by filter transients as identified by the transient
-    # duration field of the tiling structure.  The default value can be
-    # obtained for any argument by passing the empty matrix [].
-    #
-    # See also WTILE, WCONDITION, WTRANSFORM, WTHRESHOLD, WSELECT, WEXAMPLE, WSCAN,
-    # and WSEARCH.
+def wmeasure(transforms, tiling, startTime,
+             referenceTime, timeRange, frequencyRange,
+             qRange):
+    """Measure peak and weighted signal properties from Q transforms
 
-    # Notes:
-    # 1. Compute absolute or normalized energy weighted signal properties?
-    # 2. Only include tiles with Z>Z0 in integrands?
+    WMEASURE reports the peak and significance weighted mean properties of Q
+    transformed signals within the specified time-frequency region.
 
-    # Shourov K. Chatterji
-    # shourov@ligo.caltech.edu
+    usage:
 
-    # $Id: wmeasure.m 1716 2009-04-10 17:00:49Z jrollins $
+      measurements = wmeasure(transforms, tiling, startTime, referenceTime, ...
+                              timeRange, frequencyRange, qRange, debugLevel)
+
+      transforms           cell array of input Q transform structures
+      tiling               discrete Q transform tiling structure from WTILE
+      startTime            GPS start time of Q transformed data
+      referenceTime        reference time for time range to search over
+      timeRange            vector range of relative times to search over
+      frequencyRange       vector range of frequencies to search over
+      qRange               scalar Q or vector range of Qs to search over
+      debugLevel           verboseness of debug output
+
+      measurements         cell array of measured signal properties
+
+    WMEASURE returns a cell array of measured signal properties, with one cell per
+    channel.  The measured signal properties are returned as a structure that
+    contains the following fields.
+
+      peakTime                 center time of peak tile [gps seconds]
+      peakFrequency            center frequency of peak tile [Hz]
+      peakQ                    quality factor of peak tile []
+      peakDuration             duration of peak tile [seconds]
+      peakBandwidth            bandwidth of peak tile [Hz]
+      peakNormalizedEnergy     normalized energy of peak tile []
+      peakAmplitude            amplitude of peak tile [Hz^-1/2]
+      signalTime               weighted central time [gps seconds]
+      signalFrequency          weighted central frequency [Hz]
+      signalDuration           weighted duration [seconds]
+      signalBandwidth          weighted bandwidth [Hz]
+      signalNormalizedEnergy   total normalized energy []
+      signalAmplitude          total signal amplitude [Hz^-1/2]
+      signalArea               measurement time frequency area []
+
+    The user can focus on a subset of the times and frequencies available in
+    the transform data by specifying a desired range of central times,
+    central frequencies, and Qs to threshold on.  Ranges should be specified
+    as a two component vector, consisting of a minimum and maximum value.
+    Alternatively, if only a single Q is specified, WMEASURE is only applied to
+    the time-frequency plane which has the nearest value of Q in a
+    logarithmic sense to the requested value.
+
+    To determine the range of central times to search over, WMEASURE requires
+    the start time of the transformed data in addition to a reference time
+    and a relative time range.  Both the start time and reference time should
+    be specified as absolute quantities, while the range of times to analyze
+    should be specified relative to the requested reference time.
+
+    By default, WMEASURE is applied to all available frequencies and Qs, and the
+    reference time and relative time range arguments are set to exclude data
+    potentially corrupted by filter transients as identified by the transient
+    duration field of the tiling structure.  The default value can be
+    obtained for any argument by passing the empty matrix [].
+
+    See also WTILE, WCONDITION, WTRANSFORM, WTHRESHOLD, WSELECT, WEXAMPLE, WSCAN,
+    and WSEARCH.
+
+    Notes:
+    1. Compute absolute or normalized energy weighted signal properties?
+    2. Only include tiles with Z>Z0 in integrands?
+
+    Shourov K. Chatterji
+    shourov@ligo.caltech.edu
+    """
 
     ###########################################################################
     #                   process command line arguments                        #
@@ -1405,11 +1403,12 @@ def wmeasure(transforms, tiling, startTime, \
 ##########################                     ################################
 ###############################################################################
 
-def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
-           referenceTime, timeRange, frequencyRange, qRange,\
-         normalizedEnergyRange, horizontalResolution):
+def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime,
+                 referenceTime, timeRange, frequencyRange, qRange,
+                 normalizedEnergyRange, horizontalResolution):
 
-# WSPECTROGRAM Display time-frequency Q transform spectrograms
+    """Display time-frequency Q transform spectrograms
+    """
 
     ############################################################################
     #                      identify q plane to display                         #
@@ -1588,224 +1587,226 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
 ##########################                     ################################
 ###############################################################################
 
-# Parse commandline arguments
+if __name__ == '__main__':
 
-opts = parse_commandline()
+    # Parse commandline arguments
 
-if opts.condor:
-    write_subfile()
-    write_dagfile()
-    sys.exit()
+    opts = parse_commandline()
 
-################################################################################
-#                                   Parse Ini File                             #
-################################################################################
+    if opts.condor:
+        write_subfile()
+        write_dagfile()
+        sys.exit()
 
-# ---- Create configuration-file-parser object and read parameters file.
-cp = ConfigParser.ConfigParser()
-cp.read(opts.inifile)
+    ################################################################################
+    #                                   Parse Ini File                             #
+    ################################################################################
 
-# ---- Read needed variables from [parameters] and [channels] sections.
-sampleFrequency          = cp.getint('parameters','sampleFrequency')
-blockTime                = cp.getint('parameters','blockTime')
-searchFrequencyRange     = json.loads(cp.get('parameters','searchFrequencyRange'))
-searchQRange             = json.loads( cp.get('parameters','searchQRange'))
-searchMaximumEnergyLoss  = cp.getfloat('parameters','searchMaximumEnergyLoss')
-searchWindowDuration     = cp.getfloat('parameters','searchWindowDuration')
-plotTimeRanges           = json.loads(cp.get('parameters','plotTimeRanges'))
-plotFrequencyRange       = json.loads(cp.get('parameters','plotFrequencyRange'))
-plotNormalizedERange     = json.loads(cp.get('parameters','plotNormalizedERange'))
-frameCacheFile           = cp.get('channels','frameCacheFile')
-frameType                = cp.get('channels','frameType')
-channelName              = cp.get('channels','channelName')
-detectorName             = channelName.split(':')[0]
-det                      = detectorName.split('1')[0]
-################################################################################
-#                            hard coded parameters                             #
-################################################################################
+    # ---- Create configuration-file-parser object and read parameters file.
+    cp = ConfigParser.ConfigParser()
+    cp.read(opts.inifile)
 
-'''describe these...'''
-# search parameters
-transientFactor = 2
-outlierFactor = 2.0
+    # ---- Read needed variables from [parameters] and [channels] sections.
+    sampleFrequency          = cp.getint('parameters','sampleFrequency')
+    blockTime                = cp.getint('parameters','blockTime')
+    searchFrequencyRange     = json.loads(cp.get('parameters','searchFrequencyRange'))
+    searchQRange             = json.loads( cp.get('parameters','searchQRange'))
+    searchMaximumEnergyLoss  = cp.getfloat('parameters','searchMaximumEnergyLoss')
+    searchWindowDuration     = cp.getfloat('parameters','searchWindowDuration')
+    plotTimeRanges           = json.loads(cp.get('parameters','plotTimeRanges'))
+    plotFrequencyRange       = json.loads(cp.get('parameters','plotFrequencyRange'))
+    plotNormalizedERange     = json.loads(cp.get('parameters','plotNormalizedERange'))
+    frameCacheFile           = cp.get('channels','frameCacheFile')
+    frameType                = cp.get('channels','frameType')
+    channelName              = cp.get('channels','channelName')
+    detectorName             = channelName.split(':')[0]
+    det                      = detectorName.split('1')[0]
+    ################################################################################
+    #                            hard coded parameters                             #
+    ################################################################################
 
-# display parameters
-plotHorizontalResolution = 512
+    '''describe these...'''
+    # search parameters
+    transientFactor = 2
+    outlierFactor = 2.0
+
+    # display parameters
+    plotHorizontalResolution = 512
 
 
-################################################################################
-#                           create output directory                            #
-################################################################################
+    ################################################################################
+    #                           create output directory                            #
+    ################################################################################
 
-# if outputDirectory not specified, make one based on center time
-if opts.outDir is None:
-    outDir = './scans'
-else:
-    outDir = opts.outDir
-outDir += '/'
-
-# report status
-if not os.path.isdir(outDir):
-    print('creating event directory')
-    os.makedirs(outDir)
-print('outputDirectory:  {0}'.format(outDir))
-
-########################################################################
-#     Determine if this is a normal omega scan or a Gravityspy         #
-#    omega scan with unique ID. If Gravity spy then additional      #
-#    files and what not must be generated                           #
-########################################################################
-
-if opts.uniqueID:
-    IDstring = id_generator()
-    # Need to create a manifest in order to upload subject set to website.
-    manifestfile = outDir + 'manifest.csv'
-    Durs = np.arange(0,len(plotTimeRanges)).astype('int')
-    iNN = 0
-    if not os.path.isfile(manifestfile):
-        # Got to open new one and write appropriate header
-        # and first image manifest format
-        manifest = open(manifestfile,'a+')
-        manifest.write('subject_id,date,')
-        for iN in Durs:
-            iNN = iNN +1
-            if iNN == Durs.size:
-                manifest.write('Filename' +str(iN) + '\n')
-            else:
-                manifest.write('Filename' +str(iN) + ',')
-
-        # Date will be reference to build of the code and have nothing to do with the actual GPS time
-        iNN = 0
-        manifest.write(IDstring + ',03312016,')
-        for iN in Durs:
-            iNN = iNN +1
-            if iNN == Durs.size:
-                manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png\n')
-            else:
-                manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png,')
+    # if outputDirectory not specified, make one based on center time
+    if opts.outDir is None:
+        outDir = './scans'
     else:
-        manifest = open(manifestfile,'a+')
-        manifest.write(IDstring + ',03312016,')
-        for iN in Durs:
-            iNN = iNN +1
-            if iNN == Durs.size:
-                manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png\n')
-            else:
-                manifest.write(detectorName + '_' + IDstring + '_spectrogram_' +
- str(plotTimeRanges[iN]) +'.png,')
-else:
-    IDstring = str(opts.eventTime)
+        outDir = opts.outDir
+    outDir += '/'
 
-##############################################################################
-#               Process Channel Data                                         #
-##############################################################################
+    # report status
+    if not os.path.isdir(outDir):
+        print('creating event directory')
+        os.makedirs(outDir)
+    print('outputDirectory:  {0}'.format(outDir))
 
-# find closest sample time to event time
-centerTime = np.floor(opts.eventTime) + \
-           np.round((opts.eventTime - np.floor(opts.eventTime)) * \
-                 sampleFrequency) / sampleFrequency
+    ########################################################################
+    #     Determine if this is a normal omega scan or a Gravityspy         #
+    #    omega scan with unique ID. If Gravity spy then additional      #
+    #    files and what not must be generated                           #
+    ########################################################################
 
-# determine segment start and stop times
-startTime = round(centerTime - blockTime / 2)
-stopTime = startTime + blockTime
+    if opts.uniqueID:
+        IDstring = id_generator()
+        # Need to create a manifest in order to upload subject set to website.
+        manifestfile = outDir + 'manifest.csv'
+        Durs = np.arange(0,len(plotTimeRanges)).astype('int')
+        iNN = 0
+        if not os.path.isfile(manifestfile):
+            # Got to open new one and write appropriate header
+            # and first image manifest format
+            manifest = open(manifestfile,'a+')
+            manifest.write('subject_id,date,')
+            for iN in Durs:
+                iNN = iNN +1
+                if iNN == Durs.size:
+                    manifest.write('Filename' +str(iN) + '\n')
+                else:
+                    manifest.write('Filename' +str(iN) + ',')
 
-# Read in the data
-if opts.NSDF:
-    data = TimeSeries.fetch(channelName,startTime,stopTime)
-else:
-    connection = datafind.GWDataFindHTTPConnection()
-    cache = connection.find_frame_urls(det, frameType, startTime, stopTime, urltype='file')
-    data = TimeSeries.read(cache,channelName, format='gwf',start=startTime,end=stopTime)
+            # Date will be reference to build of the code and have nothing to do with the actual GPS time
+            iNN = 0
+            manifest.write(IDstring + ',03312016,')
+            for iN in Durs:
+                iNN = iNN +1
+                if iNN == Durs.size:
+                    manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png\n')
+                else:
+                    manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png,')
+        else:
+            manifest = open(manifestfile,'a+')
+            manifest.write(IDstring + ',03312016,')
+            for iN in Durs:
+                iNN = iNN +1
+                if iNN == Durs.size:
+                    manifest.write(detectorName + '_' + IDstring + '_spectrogram_' + str(plotTimeRanges[iN]) +'.png\n')
+                else:
+                    manifest.write(detectorName + '_' + IDstring + '_spectrogram_' +
+     str(plotTimeRanges[iN]) +'.png,')
+    else:
+        IDstring = str(opts.eventTime)
 
-# Plot Time Series at given plot durations
-if opts.plot_raw_timeseries:
-    plot = data.plot()
-    plot.set_title('TimeSeries')
-    plot.set_ylabel('Gravitational-wave strain amplitude')
-    for iTime in np.arange(0,len(plotTimeRanges)):
-        halfTimeRange = plotTimeRanges[iTime]*0.5
-        plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-        plot.save(outDir + detectorName + '_' + IDstring + '_timeseries_' + str(plotTimeRanges[iTime]) + '.png')
+    ##############################################################################
+    #               Process Channel Data                                         #
+    ##############################################################################
 
-# resample data
-if data.sample_rate.decompose().value != sampleFrequency:
-    data = data.resample(sampleFrequency)
+    # find closest sample time to event time
+    centerTime = np.floor(opts.eventTime) + \
+               np.round((opts.eventTime - np.floor(opts.eventTime)) * \
+                     sampleFrequency) / sampleFrequency
 
-# generate search tiling
-highPassCutoff = []
-lowPassCutoff = []
-whiteningDuration = []
-tiling = wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
-             searchMaximumEnergyLoss, highPassCutoff, lowPassCutoff, \
-             whiteningDuration, transientFactor)
+    # determine segment start and stop times
+    startTime = round(centerTime - blockTime / 2)
+    stopTime = startTime + blockTime
 
-# high pass filter and whiten data
-#data,lpefOrder = highpassfilt(data,tiling)
+    # Read in the data
+    if opts.NSDF:
+        data = TimeSeries.fetch(channelName,startTime,stopTime)
+    else:
+        connection = datafind.GWDataFindHTTPConnection()
+        cache = connection.find_frame_urls(det, frameType, startTime, stopTime, urltype='file')
+        data = TimeSeries.read(cache,channelName, format='gwf',start=startTime,end=stopTime)
 
-# Plot HighPass Filtered Time  Series at given plot durations
-if opts.plot_highpassfiltered_timeseries:
-    plot = data.plot()
-    plot.set_title('HighPassFilter')
-    plot.set_ylabel('Gravitational-wave strain amplitude')
-    for iTime in np.arange(0,len(plotTimeRanges)):
-        halfTimeRange = plotTimeRanges[iTime]*0.5
-        plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-        plot.save(outDir + detectorName + '_' + IDstring + '_highpassfiltered_' + str(plotTimeRanges[iTime]) + '.png')
+    # Plot Time Series at given plot durations
+    if opts.plot_raw_timeseries:
+        plot = data.plot()
+        plot.set_title('TimeSeries')
+        plot.set_ylabel('Gravitational-wave strain amplitude')
+        for iTime in np.arange(0,len(plotTimeRanges)):
+            halfTimeRange = plotTimeRanges[iTime]*0.5
+            plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
+            plot.save(outDir + detectorName + '_' + IDstring + '_timeseries_' + str(plotTimeRanges[iTime]) + '.png')
 
-# Time to whiten the times series data
-# Our FFTlength is determined by the predetermined whitening duration found in wtile
-FFTlength = tiling['generalparams']['whiteningDuration']
+    # resample data
+    if data.sample_rate.decompose().value != sampleFrequency:
+        data = data.resample(sampleFrequency)
 
-# We will condition our data using the median-mean approach. This means we will take two sets of non overlaping data from our time series and find the median S for both and then average them in order to be both safe against outliers and less bias. By default this ASD is one-sided.
-'''what is S? ASD?'''
+    # generate search tiling
+    highPassCutoff = []
+    lowPassCutoff = []
+    whiteningDuration = []
+    tiling = wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
+                 searchMaximumEnergyLoss, highPassCutoff, lowPassCutoff, \
+                 whiteningDuration, transientFactor)
 
-asd = data.asd(FFTlength, FFTlength/2., method='median-mean')
-#pdb.set_trace()
-#asd = asd *tiling['generalparams']['sampleFrequency']*data.size
-# Apply ASD to the data to whiten it
-white_data = data.whiten(FFTlength, FFTlength/2., asd=asd)
+    # high pass filter and whiten data
+    #data,lpefOrder = highpassfilt(data,tiling)
 
-# Plot whitened Time  Series at given plot durations
-if opts.plot_whitened_timeseries:
-    plot = white_data.plot()
-    plot.set_title('Whitened')
-    plot.set_ylabel('Gravitational-wave strain amplitude')
-    for iTime in np.arange(0,len(plotTimeRanges)):
-        halfTimeRange = plotTimeRanges[iTime]*0.5
-        plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-        plot.save(outDir + detectorName + '_' + IDstring + '_whitened_' + str(plotTimeRanges[iTime]) + '.png')
+    # Plot HighPass Filtered Time  Series at given plot durations
+    if opts.plot_highpassfiltered_timeseries:
+        plot = data.plot()
+        plot.set_title('HighPassFilter')
+        plot.set_ylabel('Gravitational-wave strain amplitude')
+        for iTime in np.arange(0,len(plotTimeRanges)):
+            halfTimeRange = plotTimeRanges[iTime]*0.5
+            plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
+            plot.save(outDir + detectorName + '_' + IDstring + '_highpassfiltered_' + str(plotTimeRanges[iTime]) + '.png')
 
-# Extract one-sided frequency-domain conditioned data.
-dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration']
-halfDataLength = int(dataLength / 2 + 1)
-white_data_fft = white_data.fft()
+    # Time to whiten the times series data
+    # Our FFTlength is determined by the predetermined whitening duration found in wtile
+    FFTlength = tiling['generalparams']['whiteningDuration']
 
-# q transform whitened data
-coefficients = []
-coordinate = [np.pi/2,0]
-whitenedTransform = \
-  wtransform(white_data_fft, tiling, outlierFactor, 'independent', channelName,coefficients, coordinate)
+    # We will condition our data using the median-mean approach. This means we will take two sets of non overlaping data from our time series and find the median S for both and then average them in order to be both safe against outliers and less bias. By default this ASD is one-sided.
+    '''what is S? ASD?'''
 
-# identify most significant whitened transform tile
-thresholdReferenceTime = centerTime
-thresholdTimeRange = 0.5 * searchWindowDuration * np.array([-1,1])
-thresholdFrequencyRange = []
-thresholdQRange = []
-whitenedProperties = \
-  wmeasure(whitenedTransform, tiling, startTime, thresholdReferenceTime, \
-           thresholdTimeRange, thresholdFrequencyRange, thresholdQRange)
+    asd = data.asd(FFTlength, FFTlength/2., method='median-mean')
+    #pdb.set_trace()
+    #asd = asd *tiling['generalparams']['sampleFrequency']*data.size
+    # Apply ASD to the data to whiten it
+    white_data = data.whiten(FFTlength, FFTlength/2., asd=asd)
 
-# Select most siginficant Q
-mostSignificantQ = \
-      whitenedProperties['channel0']['peakQ']
+    # Plot whitened Time  Series at given plot durations
+    if opts.plot_whitened_timeseries:
+        plot = white_data.plot()
+        plot.set_title('Whitened')
+        plot.set_ylabel('Gravitational-wave strain amplitude')
+        for iTime in np.arange(0,len(plotTimeRanges)):
+            halfTimeRange = plotTimeRanges[iTime]*0.5
+            plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
+            plot.save(outDir + detectorName + '_' + IDstring + '_whitened_' + str(plotTimeRanges[iTime]) + '.png')
 
-############################################################################
-#                      plot whitened spectrogram                           #
-############################################################################
+    # Extract one-sided frequency-domain conditioned data.
+    dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration']
+    halfDataLength = int(dataLength / 2 + 1)
+    white_data_fft = white_data.fft()
 
-# plot whitened spectrogram
-wspectrogram(whitenedTransform, tiling, outDir,IDstring,startTime, centerTime, \
-             plotTimeRanges, plotFrequencyRange, \
-             mostSignificantQ, plotNormalizedERange, \
-             plotHorizontalResolution)
+    # q transform whitened data
+    coefficients = []
+    coordinate = [np.pi/2,0]
+    whitenedTransform = \
+      wtransform(white_data_fft, tiling, outlierFactor, 'independent', channelName,coefficients, coordinate)
+
+    # identify most significant whitened transform tile
+    thresholdReferenceTime = centerTime
+    thresholdTimeRange = 0.5 * searchWindowDuration * np.array([-1,1])
+    thresholdFrequencyRange = []
+    thresholdQRange = []
+    whitenedProperties = \
+      wmeasure(whitenedTransform, tiling, startTime, thresholdReferenceTime, \
+               thresholdTimeRange, thresholdFrequencyRange, thresholdQRange)
+
+    # Select most siginficant Q
+    mostSignificantQ = \
+          whitenedProperties['channel0']['peakQ']
+
+    ############################################################################
+    #                      plot whitened spectrogram                           #
+    ############################################################################
+
+    # plot whitened spectrogram
+    wspectrogram(whitenedTransform, tiling, outDir,IDstring,startTime, centerTime, \
+                 plotTimeRanges, plotFrequencyRange, \
+                 mostSignificantQ, plotNormalizedERange, \
+                 plotHorizontalResolution)
 
