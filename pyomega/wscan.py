@@ -2,8 +2,7 @@
 
 # ---- Import standard modules to the python path.
 from __future__ import division
-import sys, os, shutil, math, random, copy, getopt, re, string, time
-import ConfigParser, glob, operator, optparse, json
+import sys, os, random,string,ConfigParser,optparse, json
 from gwpy.table.lsctables import SnglBurstTable
 from gwpy.segments import DataQualityFlag
 from glue import segments
