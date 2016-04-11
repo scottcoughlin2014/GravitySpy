@@ -656,13 +656,13 @@ def wtransform(data, tiling, outlierFactor, \
 
     # validate data length and force row vectors
     if len(data) != halfDataLength:
-    sys.exit()
+        sys.exit()
 
     # determine number of sites
     numberOfSites = 1;
 
     if len(coordinate) != 2:
-    sys.exit()
+        sys.exit()
 
     #######################################################################
     #                   Define some variables                             #
@@ -759,13 +759,13 @@ def wtransform(data, tiling, outlierFactor, \
                 windowedData[channelstr] = np.pad(windowedData[channelstr],\
                                     [leftZeroPadLength,rightZeroPadLength],'constant',constant_values=(0,0))
                 # reorder indices for fast fourier transform
-        lastIndex = len(windowedData[channelstr]) 
-        order1 = np.arange(lastIndex / 2,lastIndex)
-            order2 = np.arange(0,lastIndex/2)
-            order1 = order1.astype('int')
-        order2 = order2.astype('int')
-            order  = np.concatenate((order1,order2))
-        windowedData[channelstr] = windowedData[channelstr][order]
+                lastIndex = len(windowedData[channelstr]) 
+                order1 = np.arange(lastIndex / 2,lastIndex)
+                order2 = np.arange(0,lastIndex/2)
+                order1 = order1.astype('int')
+                order2 = order2.astype('int')
+                order  = np.concatenate((order1,order2))
+                windowedData[channelstr] = windowedData[channelstr][order]
 
             # end loop over intermediate channels
 
@@ -864,16 +864,16 @@ def wtransform(data, tiling, outlierFactor, \
             # begin loop over channels
             for channel in np.arange(0,numberOfChannels):
                 channelstr = 'channel' + str(channel)
-
-                  # mean of valid tile energies
-                  meanEnergy[channelstr] = \
+                
+                # mean of valid tile energies
+                meanEnergy[channelstr] = \
                   np.mean(energies[channelstr][validIndices[channelstr]]);
-
-                  # correct for bias due to outlier rejection
-                  meanEnergy[channelstr] = meanEnergy[channelstr] * \
+                    
+                # correct for bias due to outlier rejection
+                meanEnergy[channelstr] = meanEnergy[channelstr] * \
                   meanCorrectionFactor;
-
-                  # normalized tile energies
+                    
+                # normalized tile energies
                 normalizedEnergies[channelstr] = energies[channelstr] / \
                         meanEnergy[channelstr];
 
@@ -1005,26 +1005,26 @@ def wmeasure(transforms, tiling, startTime, \
 
     # apply default arguments
     if not referenceTime:
-      referenceTime = startTime + tiling.duration / 2;
+        referenceTime = startTime + tiling.duration / 2;
 
 #    if not timeRange:
 #      timeRange = 0.5 * \
 #    (tiling['generalparams']['duration'] - 2 * tiling['generalparams']['transientDuration']) * [-1 +1];
 
     if not frequencyRange:
-      frequencyRange = [float('-Inf'),float('Inf')];
+        frequencyRange = [float('-Inf'),float('Inf')];
 
     if not qRange:
-      qRange = [float('-Inf'),float('Inf')];
+        qRange = [float('-Inf'),float('Inf')];
 
     # determine number of channels
     numberOfChannels = len(transforms);
 
     # if only a single Q is requested, find nearest Q plane
     if len(qRange) == 1:
-      [ignore, qPlane] = min(abs(np.log(tiling['generalparams']['qs']) / \
+        [ignore, qPlane] = min(abs(np.log(tiling['generalparams']['qs']) / \
                                  qRange));
-      qRange = tiling['generalparams']['qs'][qPlane] * [1,1];
+        qRange = tiling['generalparams']['qs'][qPlane] * [1,1];
 
     ##########################################################################
     #                    validate command line arguments                     #
@@ -1032,13 +1032,13 @@ def wmeasure(transforms, tiling, startTime, \
 
     # Check for two component range vectors
     if len(timeRange) != 2:
-      error('Time range must be two component vector [tmin tmax].');
+        error('Time range must be two component vector [tmin tmax].');
 
     if len(frequencyRange) != 2:
-      error('Frequency range must be two component vector [fmin fmax].');
+        error('Frequency range must be two component vector [fmin fmax].');
 
     if len(qRange) > 2:
-      error('Q range must be scalar or two component vector [Qmin Qmax].');
+        error('Q range must be scalar or two component vector [Qmin Qmax].');
 
 
     ##########################################################################
@@ -1095,7 +1095,7 @@ def wmeasure(transforms, tiling, startTime, \
     # begin loop over Q planes
     for plane in np.arange(0,numberOfPlanes):
         planestr = 'plane' +str(plane)
-    plane = plane.astype('int')
+        plane = plane.astype('int')
         numberOfRows = tiling[planestr]['numberOfRows']
       
         #######################################################################
@@ -1168,7 +1168,7 @@ def wmeasure(transforms, tiling, startTime, \
                         ['normalizedEnergies'][tileIndices];
                 # find most significant tile in row
                 peakNormalizedEnergy = np.max(normalizedEnergies);
-        peakIndex            = np.argmax(normalizedEnergies).astype('int')
+                peakIndex            = np.argmax(normalizedEnergies).astype('int')
 
                 # if peak tile is in this row
                 if peakNormalizedEnergy > \
@@ -1199,7 +1199,8 @@ def wmeasure(transforms, tiling, startTime, \
                       
                     # update normalized energy of peak tile
                     measurements[channelstr]['peakNormalizedEnergy'] = \
-                peakNormalizedEnergy
+                    peakNormalizedEnergy
+                    
                     # udpate amplitude of peak tile
                     measurements[channelstr]['peakAmplitude'] = \
                         np.sqrt((peakNormalizedEnergy - 1) * transforms[channelstr][planestr][rowstr]['meanEnergy']);
@@ -1293,21 +1294,22 @@ def wmeasure(transforms, tiling, startTime, \
             # normalize weighted signal properties by total normalized energy
             if measurements[channelstr]['signalAmplitude'][plane] != 0:
                 
-              measurements[channelstr]['signalTime'][plane] = \
+                measurements[channelstr]['signalTime'][plane] = \
                   measurements[channelstr]['signalTime'][plane] / \
-                  measurements[channelstr]['signalAmplitude'][plane];
-              
-              measurements[channelstr]['signalFrequency'][plane] = \
+                    measurements[channelstr]['signalAmplitude'][plane];
+                
+                measurements[channelstr]['signalFrequency'][plane] = \
                   measurements[channelstr]['signalFrequency'][plane] / \
-                  measurements[channelstr]['signalAmplitude'][plane];
+                    measurements[channelstr]['signalAmplitude'][plane];
               
-              measurements[channelstr]['signalDuration'][plane] = \
+                measurements[channelstr]['signalDuration'][plane] = \
                   measurements[channelstr]['signalDuration'][plane] / \
-                  measurements[channelstr]['signalAmplitude'][plane];
+                    measurements[channelstr]['signalAmplitude'][plane];
               
-              measurements[channelstr]['signalBandwidth'][plane] = \
+                measurements[channelstr]['signalBandwidth'][plane] = \
                   measurements[channelstr]['signalBandwidth'][plane] / \
-                  measurements[channelstr]['signalAmplitude'][plane];
+                    measurements[channelstr]['signalAmplitude'][plane];
+                    
             # End If Statement
 
             # duration and bandwidth are second central
