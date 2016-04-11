@@ -726,7 +726,7 @@ def wtransform(data, tiling, outlierFactor, \
 
     # begin loop over Q planes
     for plane in np.arange(0,numberOfPlanes):
-    planestr = 'plane' + str(plane)
+        planestr = 'plane' + str(plane)
 
         ########################################################################
         #                begin loop over frequency rows                        #
