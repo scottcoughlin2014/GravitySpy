@@ -620,17 +620,18 @@ def highpassfilt(data,tiling):
     tiling['generalparams']['whiteningDuration']));
 
     if tiling['generalparams']['highPassCutoff'] > 0:
-    # high pass filter order
-    filterOrder = 12;
-
-    # design high pass filter
-    [hpfZeros, hpfPoles, hpfGain] = \
-    scipy.signal.butter(filterOrder, tiling['generalparams']['highPassCutoff'] \
-    / nyquistFrequency, btype='high',output='zpk');
-
-    data = data.zpk(hpfZeros,hpfPoles,hpfGain)
-
-    # End if statement
+        # high pass filter order
+        filterOrder = 12;
+        
+        # design high pass filter
+        [hpfZeros, hpfPoles, hpfGain] = \
+        scipy.signal.butter(filterOrder, tiling['generalparams']['highPassCutoff'] \
+                            / nyquistFrequency, btype='high',output='zpk');
+        
+        data = data.zpk(hpfZeros,hpfPoles,hpfGain)
+        
+        # End if statement
+    
     # supress high pass filter transients
     data.value[:lpefOrder] = np.zeros(lpefOrder);
     data.value[(dataLength - lpefOrder) :dataLength] = np.zeros(lpefOrder);
