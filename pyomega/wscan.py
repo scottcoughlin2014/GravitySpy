@@ -1,20 +1,36 @@
 #!/usr/bin/env python
 
 # ---- Import standard modules to the python path.
+
 from __future__ import division
-import sys, os, random,string,ConfigParser,optparse, json
-import numpy as np
-from gwpy.timeseries import TimeSeries
-import scipy
-from scipy.interpolate import InterpolatedUnivariateSpline
+
+import sys
+import os
+import random
+import string
+import ConfigParser
+import optparse
+import json
 import rlcompleter
 import pdb
-from glue import datafind
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+import numpy as np
+
+import scipy
+from scipy.interpolate import InterpolatedUnivariateSpline
+
+from matplotlib import use
+use('agg')
+from matplotlib import (pyplot as plt, cm)
 from matplotlib.ticker import ScalarFormatter
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+from glue import datafind
+
+from gwpy.timeseries import TimeSeries
+
 pdb.Pdb.complete = rlcompleter.Completer(locals()).complete
+
 ###############################################################################
 ##########################                             ########################
 ##########################   Func: parse_commandline   ########################
