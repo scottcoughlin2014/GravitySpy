@@ -11,7 +11,7 @@ from glue import pipeline
 from glue.lal import CacheEntry
 import numpy as np
 from gwpy.timeseries import TimeSeries
-import scipy 
+import scipy
 from scipy.interpolate import interp1d,InterpolatedUnivariateSpline
 import rlcompleter
 import pdb
@@ -286,11 +286,11 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 
         # for large Q'
         if qPrime > 10:
-            
+
             # use asymptotic value of planeNormalization
             planeNormalization = 1
         else:
-            
+
             # polynomial coefficients for plane normalization factor
             coefficients = [\
                             np.log((qPrime + 1) / (qPrime - 1)), -2,\
@@ -300,7 +300,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
                           np.log((qPrime + 1) / (qPrime - 1))];
             # Cast as an array
             coefficients = np.asarray(coefficients)
-            
+
             # plane normalization factor
             planeNormalization = np.sqrt(256 / (315 * qPrime * \
                                      np.polyval(coefficients, qPrime)));
@@ -397,50 +397,50 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
         #######################################################################
 
         for row in np.arange(0,numberOfRows):
-            
+
             rowstr = 'row' + str(row)
-            
+
             # extract frequency of row from frequency vector
             frequency = frequencies[int(row)];
-            
+
             ####################################################################
             #              determine tile properties                           #
             ####################################################################
-            
+
             # bandwidth for coincidence testing
             bandwidth = 2 * np.sqrt(np.pi) * frequency / q;
 
             # duration for coincidence testing
             duration = 1 / bandwidth;
-            
+
             # frequency step for integration
             frequencyStep = frequency * (frequencyRatio - 1) / np.sqrt(frequencyRatio);
-            
+
             ####################################################################
             #                 determine tile times                             #
             ####################################################################
-            
+
             # cumulative mismatch across time range
             timeCumulativeMismatch = blockTime * 2 * np.pi * frequency / q;
-            
+
             # number of time tiles
             numberOfTiles = nextpow2(timeCumulativeMismatch / mismatchStep);
-            
+
             # mismatch between neighboring time tiles
             timeMismatchStep = timeCumulativeMismatch / numberOfTiles;
-            
+
             # index of time tiles
             timeIndices = np.arange(0,numberOfTiles);
-            
+
             # vector of times
             times = q * timeIndices * timeMismatchStep / (2 * np.pi * frequency);
 
             # time step for integration
             timeStep = q * timeMismatchStep / (2 * np.pi * frequency);
-            
+
             # number of flops to compute row
             numberOfFlops = numberOfTiles * np.log(numberOfTiles);
-            
+
             # number of independent tiles in row
             numberOfIndependents = 1 + timeCumulativeMismatch;
 
@@ -479,7 +479,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
             zeroPadLength = numberOfTiles - windowLength;
 
             # vector of data indices to inverse fourier transform
-            dataIndices = np.round(1 + frequency / minimumFrequencyStep + windowIndices);    
+            dataIndices = np.round(1 + frequency / minimumFrequencyStep + windowIndices);
             ####################################################################
             #           create Q transform row structure                       #
             ####################################################################
@@ -534,7 +534,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
             ##############################################################
             #       end loop over frequency rows                         #
             ##############################################################
-    
+
         # increment number of tiles in plane counter
         tiling['generalparams']['numberOfTiles'] = \
              tiling['generalparams']['numberOfTiles']  + tiling[planestr]['numberOfTiles'];
@@ -572,7 +572,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
         defaultWhiteningDuration = max(defaultWhiteningDuration, \
                                  tiling[planestr]['q'] / \
                                  (2 * tiling[planestr]['minimumFrequency']));
-        
+
         # put duration as an integer power of 2 of seconds
         defaultWhiteningDuration = 2**np.round(np.log2(defaultWhiteningDuration));
         # high pass filter cutoff frequency
@@ -580,22 +580,22 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
             tiling['generalparams']['highPassCutoff'] = defaultHighPassCutoff;
         else:
             tiling['generalparams']['highPassCutoff'] = highPassCutoff;
-            
+
         # low pass filter cutoff frequency
         if not lowPassCutoff:
             tiling['generalparams']['lowPassCutoff'] = defaultLowPassCutoff;
         else:
             tiling['generalparams']['lowPassCutoff'] = lowPassCutoff;
-            
+
         # whitening filter duration
         if not whiteningDuration:
             tiling['generalparams']['whiteningDuration'] = defaultWhiteningDuration;
         else:
             tiling['generalparams']['whiteningDuration'] = whiteningDuration;
-        
+
         # estimated duration of filter transients to supress
         tiling['generalparams']['transientDuration'] = transientFactor * tiling['generalparams']['whiteningDuration'];
-        
+
         # test for insufficient data
         if (2 * tiling['generalparams']['transientDuration']) >= \
             tiling['generalparams']['duration']:
@@ -625,16 +625,16 @@ def highpassfilt(data,tiling):
     if tiling['generalparams']['highPassCutoff'] > 0:
         # high pass filter order
         filterOrder = 12;
-        
+
         # design high pass filter
         [hpfZeros, hpfPoles, hpfGain] = \
         scipy.signal.butter(filterOrder, tiling['generalparams']['highPassCutoff'] \
                             / nyquistFrequency, btype='high',output='zpk');
-        
+
         data = data.zpk(hpfZeros,hpfPoles,hpfGain)
-        
+
         # End if statement
-    
+
     # supress high pass filter transients
     data.value[:lpefOrder] = np.zeros(lpefOrder);
     data.value[(dataLength - lpefOrder) :dataLength] = np.zeros(lpefOrder);
@@ -685,7 +685,7 @@ def wtransform(data, tiling, outlierFactor, \
     for channel in np.arange(0,numberOfChannels):
         channelstr = 'channel' + str(channel)
         transforms[channelstr] = {}
-        
+
     # End loop over channels
 
     # begin loop over Q planes
@@ -693,7 +693,7 @@ def wtransform(data, tiling, outlierFactor, \
 
         planestr = 'plane' + str(plane)
         transforms[channelstr][planestr] = {}
-        
+
         # Begin loop over frequency rows
         for row in np.arange(0,tiling[planestr]['numberOfRows']):
             # create empty cell array of frequency row structures
@@ -702,7 +702,7 @@ def wtransform(data, tiling, outlierFactor, \
         # End loop over frequency rows
 
     # End loop over Q planes
-    
+
     # Initialize energies
     energies = {}
     # Initialize windowedData
@@ -737,7 +737,7 @@ def wtransform(data, tiling, outlierFactor, \
 
         # begin loop over frequency rows
         for row in np.arange(0,tiling[planestr]['numberOfRows']):
-            
+
             rowstr = 'row' +str(row)
 
             ####################################################################
@@ -757,12 +757,12 @@ def wtransform(data, tiling, outlierFactor, \
                 # extract and window in-band data
                 windowedData[channelstr] = tiling[planestr][rowstr]['window'] * \
                 data[tiling[planestr][rowstr]['dataIndices']];
-        
+
                 # zero pad windowed data
                 windowedData[channelstr] = np.pad(windowedData[channelstr],\
                                     [leftZeroPadLength,rightZeroPadLength],'constant',constant_values=(0,0))
                 # reorder indices for fast fourier transform
-                lastIndex = len(windowedData[channelstr]) 
+                lastIndex = len(windowedData[channelstr])
                 order1 = np.arange(lastIndex / 2,lastIndex)
                 order2 = np.arange(0,lastIndex/2)
                 order1 = order1.astype('int')
@@ -779,7 +779,7 @@ def wtransform(data, tiling, outlierFactor, \
             # begin loop over intermediate channels
             for channel in np.arange(0,numberOfChannels):
                 channelstr = 'channel' + str(channel)
-                
+
                 # Initialize tileCoefficients
                 tileCoefficients[channelstr] = {}
                 # complex valued tile coefficients
@@ -809,7 +809,7 @@ def wtransform(data, tiling, outlierFactor, \
             # begin loop over channels
             for channel in np.arange(0,numberOfChannels):
                 channelstr = 'channel' + str(channel)
-                
+
                   # indices of non-transient tiles
                 validIndices[channelstr] = \
                 np.logical_and(times > \
@@ -867,21 +867,21 @@ def wtransform(data, tiling, outlierFactor, \
             # begin loop over channels
             for channel in np.arange(0,numberOfChannels):
                 channelstr = 'channel' + str(channel)
-                
+
                 # mean of valid tile energies
                 meanEnergy[channelstr] = \
                   np.mean(energies[channelstr][validIndices[channelstr]]);
-                    
+
                 # correct for bias due to outlier rejection
                 meanEnergy[channelstr] = meanEnergy[channelstr] * \
                   meanCorrectionFactor;
-                    
+
                 # normalized tile energies
                 normalizedEnergies[channelstr] = energies[channelstr] / \
                         meanEnergy[channelstr];
 
             # end loop over channels
-            
+
             ####################################################################
             #              insert results into transform structure             #
             ####################################################################
@@ -898,7 +898,7 @@ def wtransform(data, tiling, outlierFactor, \
                 # insert normalized tile energies into frequency row structure
                 transforms[channelstr][planestr][rowstr]['normalizedEnergies'] = \
                 normalizedEnergies[channelstr];
-      
+
             # end loop over channels
 
         ########################################################################
@@ -1100,7 +1100,7 @@ def wmeasure(transforms, tiling, startTime, \
         planestr = 'plane' +str(plane)
         plane = plane.astype('int')
         numberOfRows = tiling[planestr]['numberOfRows']
-      
+
         #######################################################################
         #                       threshold on Q                                #
         #######################################################################
@@ -1139,7 +1139,7 @@ def wmeasure(transforms, tiling, startTime, \
             ###################################################################
             #             threshold on central time                           #
             ###################################################################
-        
+
             # skip tiles outside requested time range
             tileIndices = \
                 np.logical_and(times >= \
@@ -1149,7 +1149,7 @@ def wmeasure(transforms, tiling, startTime, \
             ###################################################################
             #  differential time-frequency area for integration               #
             ###################################################################
-        
+
             # differential time-frequency area for integration
             differentialArea = tiling[planestr][rowstr]['timeStep'] * \
                            tiling[planestr][rowstr]['frequencyStep'];
@@ -1157,7 +1157,7 @@ def wmeasure(transforms, tiling, startTime, \
             ###################################################################
             #              begin loop over channels                           #
             ###################################################################
-        
+
             # begin loop over channels
             for channel in np.arange(0,numberOfChannels):
                 channelstr = 'channel' + str(channel)
@@ -1165,7 +1165,7 @@ def wmeasure(transforms, tiling, startTime, \
                 ###############################################################
                 #        update peak tile properties                          #
                 ###############################################################
-          
+
                 # vector of row tile normalized energies
                 normalizedEnergies = transforms[channelstr][planestr][rowstr]\
                         ['normalizedEnergies'][tileIndices];
@@ -1179,7 +1179,7 @@ def wmeasure(transforms, tiling, startTime, \
 
                     # update plane index of peak tile
                     peakPlane[channelstr] = plane;
-            
+
                     # update center time of peak tile
                     measurements[channelstr]['peakTime'] = \
                         times[tileIndices][peakIndex] + startTime;
@@ -1199,17 +1199,17 @@ def wmeasure(transforms, tiling, startTime, \
                     # update bandwidth of peak tile
                     measurements[channelstr]['peakBandwidth'] = \
                                 tiling[planestr][rowstr]['bandwidth'];
-                      
+
                     # update normalized energy of peak tile
                     measurements[channelstr]['peakNormalizedEnergy'] = \
                     peakNormalizedEnergy
-                    
+
                     # udpate amplitude of peak tile
                     measurements[channelstr]['peakAmplitude'] = \
                         np.sqrt((peakNormalizedEnergy - 1) * transforms[channelstr][planestr][rowstr]['meanEnergy']);
-                            
+
                 # End If Statement
-          
+
                 ###############################################################
                 #                update weighted signal properties            #
                 ###############################################################
@@ -1230,7 +1230,7 @@ def wmeasure(transforms, tiling, startTime, \
 
                 # sum of calibrated tile enregies in row
                 sumCalibratedEnergies = sum(calibratedEnergies);
-          
+
                 # update weighted central time integral
                 measurements[channelstr]['signalTime'][plane] = \
                     measurements[channelstr]['signalTime'][plane] + \
@@ -1285,39 +1285,39 @@ def wmeasure(transforms, tiling, startTime, \
         ######################################################################
         #               end loop over frequency rows                         #
         ######################################################################
-        
+
 
         ######################################################################
         #               normalize signal properties                          #
         ######################################################################
-      
+
         # begin loop over channels
         for channel in np.arange(0,numberOfChannels):
             channelstr = 'channel' + str(channel)
             # normalize weighted signal properties by total normalized energy
             if measurements[channelstr]['signalAmplitude'][plane] != 0:
-                
+
                 measurements[channelstr]['signalTime'][plane] = \
                   measurements[channelstr]['signalTime'][plane] / \
                     measurements[channelstr]['signalAmplitude'][plane];
-                
+
                 measurements[channelstr]['signalFrequency'][plane] = \
                   measurements[channelstr]['signalFrequency'][plane] / \
                     measurements[channelstr]['signalAmplitude'][plane];
-              
+
                 measurements[channelstr]['signalDuration'][plane] = \
                   measurements[channelstr]['signalDuration'][plane] / \
                     measurements[channelstr]['signalAmplitude'][plane];
-              
+
                 measurements[channelstr]['signalBandwidth'][plane] = \
                   measurements[channelstr]['signalBandwidth'][plane] / \
                     measurements[channelstr]['signalAmplitude'][plane];
-                    
+
             # End If Statement
 
             # duration and bandwidth are second central
             # moments in time and frequency
-            '''Not sure what this means...'''            
+            '''Not sure what this means...'''
             measurements[channelstr]['signalDuration'][plane] = \
                 np.sqrt(measurements[channelstr]['signalDuration'][plane] - \
                      measurements[channelstr]['signalTime'][plane]**2);
@@ -1335,7 +1335,7 @@ def wmeasure(transforms, tiling, startTime, \
 
         # end loop over channels
 
-      
+
     ######################################################################
     #                  end loop over Q planes                            #
     ######################################################################
@@ -1458,7 +1458,7 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
         normalizedEnergies[timestr] = np.zeros((numberOfRows, horizontalResolution));
         timeRange1 = {}
         times      = {}
-        
+
     for iN in np.arange(0,len(timeRange)):
         timestr = 'time' + str(iN)
         # vector of times to display
@@ -1497,7 +1497,7 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
             rowNormalizedEnergies = transforms['channel0'][planeIndexstr][rowstr]['normalizedEnergies'][tileIndices];
             # interpolate to desired horizontal resolution
             f = InterpolatedUnivariateSpline(rowTimestemp, rowNormalizedEnergies);
-            
+
             rowNormalizedEnergies = f(times[timestr]);
 
             # insert into display matrix
@@ -1507,26 +1507,26 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
 #                      end loop over frequency rows                        #
 ############################################################################
 
-   
+
 ############################################################################
 #                      Plot spectrograms                                   #
-############################################################################ 
+############################################################################
     for iN in np.arange(0,len(timeRange)):
         timestr = 'time' + str(iN)
         time = times[timestr]
         freq = frequencies
         Energ = normalizedEnergies[timestr]
-        
+
         fig, axSpectrogram = plt.subplots()
-        
+
         # Make Omega Spectrogram
-        
+
         axSpectrogram.xaxis.set_ticks_position('bottom')
-        
+
         myfontsize = 15
         myColor = 'k'
         mylabelfontsize = 20
-        
+
         axSpectrogram.set_xlabel("Time (s)", fontsize=mylabelfontsize, color=myColor)
         axSpectrogram.set_ylabel("Freq (Hz)", fontsize=mylabelfontsize, color=myColor)
         if detectorName == 'H1':
@@ -1535,9 +1535,9 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
             title = "Livingston"
         else:
             title = "VIRGO"
-        
+
         axSpectrogram.set_title(title,fontsize=mylabelfontsize, color=myColor)
-        
+
         xmin = min(time)
         xmax = max(time)
         dur = xmax-xmin
@@ -1545,42 +1545,42 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime, \
         xticklabels = []
         for i in xticks:
             xticklabels.append(str(i))
-            
+
         ymin = min(freq)
         ymax = max(freq)
-        
+
         #myvmax = np.max(Energ)
         myvmax = np.max(normalizedEnergyRange)
         cmap = cm.get_cmap(name='viridis')
         myInterp='bicubic'
-        
+
         cax = axSpectrogram.matshow(Energ, cmap=cmap, \
                            interpolation=myInterp,aspect='auto', origin='lower', \
                            vmin=0.0,extent=[xmin,xmax,ymin,ymax],vmax=myvmax)
-        
+
         axSpectrogram.set_yscale('log', basey=2, subsy=None)
         ax = plt.gca().yaxis
         ax.set_major_formatter(ScalarFormatter())
         axSpectrogram.ticklabel_format(axis='y', style='plain')
-        
+
         axSpectrogram.set_xticks(xticks)
         axSpectrogram.set_xticklabels(xticklabels,fontsize=myfontsize)
-        
+
         # Create Colorbar
         # Make an axis: [left, bottom, width, height], plotting area from 0 to 1
-        #cbaxes = fig.add_axes([0.905,0.15,0.04,0.75]) 
+        #cbaxes = fig.add_axes([0.905,0.15,0.04,0.75])
         divider = make_axes_locatable(fig.gca())
         cbaxes = divider.append_axes("right", "5%", pad="3%")
         colorbarticks=range(0,30,5)
         colorbarticklabels=["0","5","10","15","20","25"]
         colorbarlabel = 'Normalized energy'
-        
+
         cbar   = fig.colorbar(cax, ticks=colorbarticks,cax=cbaxes)
         cbar.set_label(label=colorbarlabel, size=myfontsize, color=myColor)
         cbaxes.set_yticklabels(colorbarticklabels,verticalalignment='center'\
                                , color=myColor)
         axSpectrogram.xaxis.set_ticks_position('bottom')
-        
+
         fig.savefig(outDir + detectorName + '_' + IDstring + '_spectrogram_' + str(dur) +'.png')
 
 
@@ -1716,7 +1716,7 @@ stopTime = startTime + blockTime;
 if opts.NSDF:
     data = TimeSeries.fetch(channelName,startTime,stopTime)
 else:
-    connection = datafind.GWDataFindHTTPConnection()    
+    connection = datafind.GWDataFindHTTPConnection()
     cache = connection.find_frame_urls(det, frameType, startTime, stopTime, urltype='file')
     data = TimeSeries.read(cache,channelName, format='gwf',start=startTime,end=stopTime)
 
