@@ -62,7 +62,9 @@ def parse_commandline():
 # Write submission file for the condor job
 
 def write_subfile():
-    os.system('mkdir logs condor')
+    for d in ['logs', 'condor']:
+        if not os.path.isdir(d):
+            os.makedirs(d)
     with open('./condor/gravityspy.sub', 'w') as subfile:
         subfile.write('universe = vanilla\n')
         subfile.write('executable = {0}/wscan.py\n'.format(os.getcwd()))
