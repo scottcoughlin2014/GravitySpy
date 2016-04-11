@@ -1636,14 +1636,13 @@ if opts.outDir is None:
     outDir = './scans'
 else:
     outDir = opts.outDir
+outDir += '/'
 
 # report status
-print('creating event directory')
+if not os.path.isdir(outDir):
+    print('creating event directory')
+    os.makedirs(outDir)
 print('outputDirectory:  {0}'.format(outDir))
-
-# create spectrogram directory
-system_call = 'mkdir -p {0}'.format(outDir)
-os.system(system_call)
 
 ########################################################################
 #     Determine if this is a normal omega scan or a Gravityspy         #
