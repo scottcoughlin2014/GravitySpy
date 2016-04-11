@@ -734,8 +734,8 @@ def wtransform(data, tiling, outlierFactor, \
 
         # begin loop over frequency rows
         for row in np.arange(0,tiling[planestr]['numberOfRows']):
-
-        rowstr = 'row' +str(row)
+            
+            rowstr = 'row' +str(row)
 
             ####################################################################
             #          extract and window frequency domain data                #
