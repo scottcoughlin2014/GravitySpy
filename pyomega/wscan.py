@@ -462,7 +462,7 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 
             # bi square window function
             '''what?'''
-             window = (1 - windowArgument**2)**2;
+            window = (1 - windowArgument**2)**2;
             # row normalization factor
             rowNormalization = np.sqrt((315 * qPrime) / (128 * frequency));
 
@@ -561,44 +561,42 @@ def wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
     # default whitening filter duration
     defaultWhiteningDuration = 0;
     for plane in np.arange(0,numberOfPlanes):
-    planestr = 'plane' + str(plane)
-    defaultHighPassCutoff = min(defaultHighPassCutoff, \
+        planestr = 'plane' + str(plane)
+        defaultHighPassCutoff = min(defaultHighPassCutoff, \
                               tiling[planestr]['minimumFrequency']);
-    defaultLowPassCutoff = max(defaultLowPassCutoff, \
+        defaultLowPassCutoff = max(defaultLowPassCutoff, \
                              tiling[planestr]['maximumFrequency']);
-    defaultWhiteningDuration = max(defaultWhiteningDuration, \
+        defaultWhiteningDuration = max(defaultWhiteningDuration, \
                                  tiling[planestr]['q'] / \
                                  (2 * tiling[planestr]['minimumFrequency']));
-
-    # put duration as an integer power of 2 of seconds
-    defaultWhiteningDuration = 2**np.round(np.log2(defaultWhiteningDuration));
-
-
-    # high pass filter cutoff frequency
-    if not highPassCutoff:
-    tiling['generalparams']['highPassCutoff'] = defaultHighPassCutoff;
-    else:
-    tiling['generalparams']['highPassCutoff'] = highPassCutoff;
-
-    # low pass filter cutoff frequency
-    if not lowPassCutoff:
-    tiling['generalparams']['lowPassCutoff'] = defaultLowPassCutoff;
-    else:
-    tiling['generalparams']['lowPassCutoff'] = lowPassCutoff;
-
-    # whitening filter duration
-    if not whiteningDuration:
-    tiling['generalparams']['whiteningDuration'] = defaultWhiteningDuration;
-    else:
-    tiling['generalparams']['whiteningDuration'] = whiteningDuration;
-
-    # estimated duration of filter transients to supress
-    tiling['generalparams']['transientDuration'] = transientFactor * tiling['generalparams']['whiteningDuration'];
-
-    # test for insufficient data
-    if (2 * tiling['generalparams']['transientDuration']) >= \
+        
+        # put duration as an integer power of 2 of seconds
+        defaultWhiteningDuration = 2**np.round(np.log2(defaultWhiteningDuration));
+        # high pass filter cutoff frequency
+        if not highPassCutoff:
+            tiling['generalparams']['highPassCutoff'] = defaultHighPassCutoff;
+        else:
+            tiling['generalparams']['highPassCutoff'] = highPassCutoff;
+            
+        # low pass filter cutoff frequency
+        if not lowPassCutoff:
+            tiling['generalparams']['lowPassCutoff'] = defaultLowPassCutoff;
+        else:
+            tiling['generalparams']['lowPassCutoff'] = lowPassCutoff;
+            
+        # whitening filter duration
+        if not whiteningDuration:
+            tiling['generalparams']['whiteningDuration'] = defaultWhiteningDuration;
+        else:
+            tiling['generalparams']['whiteningDuration'] = whiteningDuration;
+        
+        # estimated duration of filter transients to supress
+        tiling['generalparams']['transientDuration'] = transientFactor * tiling['generalparams']['whiteningDuration'];
+        
+        # test for insufficient data
+        if (2 * tiling['generalparams']['transientDuration']) >= \
             tiling['generalparams']['duration']:
-    error('duration of filter transients equals or exceeds data duration');
+                error('duration of filter transients equals or exceeds data duration');
 
     return tiling
 
