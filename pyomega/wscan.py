@@ -3,27 +3,15 @@
 # ---- Import standard modules to the python path.
 from __future__ import division
 import sys, os, random,string,ConfigParser,optparse, json
-from gwpy.table.lsctables import SnglBurstTable
-from gwpy.segments import DataQualityFlag
-from glue import segments
-from glue import segmentsUtils
-from glue import pipeline
-from glue.lal import CacheEntry
 import numpy as np
 from gwpy.timeseries import TimeSeries
 import scipy
-from scipy.interpolate import interp1d,InterpolatedUnivariateSpline
+from scipy.interpolate import InterpolatedUnivariateSpline
 import rlcompleter
 import pdb
 from glue import datafind
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
-import matplotlib.image as mpimg
-import matplotlib.patches as patches
 import matplotlib.cm as cm
-from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-import pylab
-from matplotlib import rcParams
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import ScalarFormatter
 pdb.Pdb.complete = rlcompleter.Completer(locals()).complete
