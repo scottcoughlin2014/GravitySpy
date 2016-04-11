@@ -1746,13 +1746,14 @@ tiling = wtile(blockTime, searchQRange, searchFrequencyRange, sampleFrequency, \
 #data,lpefOrder = highpassfilt(data,tiling)
 
 # Plot HighPass Filtered Time  Series at given plot durations
-plot = data.plot()
-plot.set_title('HighPassFilter')
-plot.set_ylabel('Gravitational-wave strain amplitude')
-for iTime in np.arange(0,len(plotTimeRanges)):
-    halfTimeRange = plotTimeRanges[iTime]*0.5
-    plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-    plot.save(outDir + detectorName + '_' + IDstring + '_highpassfiltered_' + str(plotTimeRanges[iTime]) + '.png')
+if opts.plot_highpassfiltered_timeseries:
+    plot = data.plot()
+    plot.set_title('HighPassFilter')
+    plot.set_ylabel('Gravitational-wave strain amplitude')
+    for iTime in np.arange(0,len(plotTimeRanges)):
+        halfTimeRange = plotTimeRanges[iTime]*0.5
+        plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
+        plot.save(outDir + detectorName + '_' + IDstring + '_highpassfiltered_' + str(plotTimeRanges[iTime]) + '.png')
 
 # Time to whiten the times series data
 # Our FFTlength is determined by the predetermined whitening duration found in wtile
@@ -1767,14 +1768,15 @@ asd = data.asd(FFTlength, FFTlength/2., method='median-mean')
 # Apply ASD to the data to whiten it
 white_data = data.whiten(FFTlength, FFTlength/2., asd=asd)
 
-plot = white_data.plot()
-plot.set_title('Whitened')
-plot.set_ylabel('Gravitational-wave strain amplitude')
-plot.save('/home/scoughlin/public_html/test3/whitenedwhole.png')
-for iTime in np.arange(0,len(plotTimeRanges)):
-    halfTimeRange = plotTimeRanges[iTime]*0.5
-    plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
-    plot.save(outDir + detectorName + '_' + IDstring + '_whitened_' + str(plotTimeRanges[iTime]) + '.png')
+# Plot whitened Time  Series at given plot durations
+if opts.plot_whitened_timeseries:
+    plot = white_data.plot()
+    plot.set_title('Whitened')
+    plot.set_ylabel('Gravitational-wave strain amplitude')
+    for iTime in np.arange(0,len(plotTimeRanges)):
+        halfTimeRange = plotTimeRanges[iTime]*0.5
+        plot.set_xlim(opts.eventTime - halfTimeRange,opts.eventTime + halfTimeRange)
+        plot.save(outDir + detectorName + '_' + IDstring + '_whitened_' + str(plotTimeRanges[iTime]) + '.png')
 
 # Extract one-sided frequency-domain conditioned data.
 dataLength = tiling['generalparams']['sampleFrequency'] * tiling['generalparams']['duration'];
