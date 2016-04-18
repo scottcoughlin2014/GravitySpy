@@ -1598,9 +1598,9 @@ if __name__ == '__main__':
         write_dagfile()
         sys.exit()
 
-    ################################################################################
-    #                                   Parse Ini File                             #
-    ################################################################################
+    ###########################################################################
+    #                                   Parse Ini File                        #
+    ###########################################################################
 
     # ---- Create configuration-file-parser object and read parameters file.
     cp = ConfigParser.ConfigParser()
@@ -1621,9 +1621,9 @@ if __name__ == '__main__':
     channelName              = cp.get('channels','channelName')
     detectorName             = channelName.split(':')[0]
     det                      = detectorName.split('1')[0]
-    ################################################################################
-    #                            hard coded parameters                             #
-    ################################################################################
+    ###########################################################################
+    #                            hard coded parameters                        #
+    ###########################################################################
 
     '''describe these...'''
     # search parameters
@@ -1634,9 +1634,9 @@ if __name__ == '__main__':
     plotHorizontalResolution = 512
 
 
-    ################################################################################
-    #                           create output directory                            #
-    ################################################################################
+    ###########################################################################
+    #                           create output directory                       #
+    ###########################################################################
 
     # if outputDirectory not specified, make one based on center time
     if opts.outDir is None:
@@ -1653,8 +1653,8 @@ if __name__ == '__main__':
 
     ########################################################################
     #     Determine if this is a normal omega scan or a Gravityspy         #
-    #    omega scan with unique ID. If Gravity spy then additional      #
-    #    files and what not must be generated                           #
+    #    omega scan with unique ID. If Gravity spy then additional         #
+    #    files and what not must be generated                              #
     ########################################################################
 
     if opts.uniqueID:
@@ -1697,9 +1697,9 @@ if __name__ == '__main__':
     else:
         IDstring = str(opts.eventTime)
 
-    ##############################################################################
-    #               Process Channel Data                                         #
-    ##############################################################################
+    ###########################################################################
+    #               Process Channel Data                                      #
+    ###########################################################################
 
     # find closest sample time to event time
     centerTime = np.floor(opts.eventTime) + \
@@ -1800,6 +1800,20 @@ if __name__ == '__main__':
     mostSignificantQ = \
           whitenedProperties['channel0']['peakQ']
 
+    # identify significant whitened q transform tiles
+    thresholdReferenceTime = centerTime;
+    thresholdTimeRange = 0.5 * np.array([-1,1]) * \
+               (max(plotTimeRanges) + \
+               tiling[planes{end}.['row0']['duration'] * plotDurationInflation)
+    thresholdFrequencyRange = plotFrequencyRange
+    thresholdQRange = []
+    whitenedSignificants = \
+      wthreshold(whitenedTransform, tiling, startTime, whiteNoiseFalseRate, \
+               thresholdReferenceTime, thresholdTimeRange, \
+               thresholdFrequencyRange, thresholdQRange, \
+               maximumSignificants, [], [], [], [], \
+               debugLevel)
+
     ############################################################################
     #                      plot whitened spectrogram                           #
     ############################################################################
@@ -1810,3 +1824,8 @@ if __name__ == '__main__':
                  mostSignificantQ, plotNormalizedERange, \
                  plotHorizontalResolution)
 
+    # Plot whitened eventgram
+    weventgram(whitenedSignificants, tiling, startTime, centerTime, \
+                 plotTimeRange * [-1 +1] / 2, plotFrequencyRange, \
+                 plotDurationInflation, plotBandwidthInflation, \
+                 plotNormalizedEnergyRange);
