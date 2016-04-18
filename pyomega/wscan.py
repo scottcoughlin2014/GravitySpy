@@ -1811,8 +1811,12 @@ if __name__ == '__main__':
       wthreshold(whitenedTransform, tiling, startTime, whiteNoiseFalseRate, \
                thresholdReferenceTime, thresholdTimeRange, \
                thresholdFrequencyRange, thresholdQRange, \
-               maximumSignificants, [], [], [], [], \
-               debugLevel)
+               maximumSignificants, [], [], [], [])
+
+    # select non-overlapping whitened significant tiles
+    whitenedSignificants = wselect(whitenedSignificants, \
+               plotDurationInflation, plotBandwidthInflation, \
+               maximumMosaics)
 
     ############################################################################
     #                      plot whitened spectrogram                           #
