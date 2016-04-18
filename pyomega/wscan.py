@@ -1025,10 +1025,10 @@ def threshold(transforms, tiling, startTime, falseEventRate,
 
     # apply default arguments
     if referenceTime is None:
-        referenceTime = startTime + tiling.duration / 2
+        referenceTime = startTime + tiling['generalparams']['duration'] / 2
 
     if timeRange is None:
-        timeRange = 0.5 * (tiling.duration - 2 * tiling.transientDuration) * [-1 +1]
+        timeRange = 0.5 * (tiling['generalparams']['duration'] - 2 * tiling['generalparams']['transientDuration']) * np.array([-1,1])
 
     if frequencyRange is None:
         frequencyRange = [float('-Inf'),float('Inf')]
@@ -1050,9 +1050,6 @@ def threshold(transforms, tiling, startTime, falseEventRate,
 
     if correlationFactor is None:
         correlationFactor = 0
-
-    if PSD is None:
-        PSD = 0
 
     # determine number of channels
     numberOfChannels = 1
@@ -1077,350 +1074,248 @@ def threshold(transforms, tiling, startTime, falseEventRate,
     if qRange.size > 2:
         raise ValueError('Q range must be scalar or two component vector [Qmin Qmax].')
 
-################################################################################
-#                         normalized energy threshold                          #
-################################################################################
+    ############################################################################
+    #                     normalized energy threshold                          #
+    ############################################################################
 
-# approximate number of statistically independent tiles per second
-independentsRate = tiling.numberOfIndependents / tiling.duration
+    # approximate number of statistically independent tiles per second
+    independentsRate = tiling["generalparams"]["numberOfIndependents"] / tiling['generalparams']['duration']
 
-# apply emperically determined correction factor
-independentsRate = independentsRate * 1.5
+    # apply emperically determined correction factor
+    independentsRate = independentsRate * 1.5
 
-# probability associated with desired false event rate
-falseEventProbability = falseEventRate / independentsRate
+    # probability associated with desired false event rate
+    falseEventProbability = falseEventRate / independentsRate
 
-# probability associated with desired false veto rate
-falseVetoProbability = falseVetoRate / independentsRate
+    # probability associated with desired false veto rate
+    falseVetoProbability = falseVetoRate / independentsRate
 
-# normalized energy threshold for desired false event rate
-eventThreshold = -log(falseEventProbability)
+    # normalized energy threshold for desired false event rate
+    eventThreshold = -np.log(falseEventProbability)
 
-# normalized energy threshold for desired false veto rate
-if falseVetoProbability == 0,
-  vetoThreshold = Inf
-else
-  vetoThreshold = -log(falseVetoProbability)
-
-################################################################################
-#                             apply analysis mode                              #
-################################################################################
-
-# switch on analysis mode
-switch lower(analysisMode),
-
-  case {'independent', 'bayesian'},
-
-    # threshold on all signal channels individually
-    for channelNumber = 1 : numberOfChannels,
-      outputChannels{channelNumber}.channelName = ...
-          transforms{channelNumber}.channelName
-      outputChannels{channelNumber}.channelType = 'signal'
-      outputChannels{channelNumber}.signalChannel = channelNumber
-      outputChannels{channelNumber}.referenceChannel = []
-    end
-
-  case {'coherent'},
-
-    # threshold on signal channel
-    outputChannels{1}.channelName = ...
-        regexprep(transforms{1}.channelName, '-.*$', '')
-    outputChannels{1}.channelType = 'signal'
-    outputChannels{1}.signalChannel = 1
-    outputChannels{1}.referenceChannel = 2
-
-    # threshold on null channel
-    if numberOfChannels > 2,
-      outputChannels{2}.channelName = ...
-          regexprep(transforms{3}.channelName, '-.*$', '')
-      outputChannels{2}.channelType = 'null'
-      outputChannels{2}.signalChannel = 3
-      outputChannels{2}.referenceChannel = 4
-    end
-
-  otherwise,
-    error(['unknown analysis mode "' analysisMode '"'])
-
-# end switch on analysis mode
-end
-
-# number of output channels
-numberOfOutputChannels = length(outputChannels)
-
-################################################################################
-#             initialize statistically significant event structure             #
-################################################################################
-
-# create empty cell array of significant event structures
-significants = cell(numberOfOutputChannels, 1)
-
-# begin loop over channels
-for outputChannelNumber = 1 : numberOfOutputChannels
-
-  # insert structure identification string
-  significants{outputChannelNumber}.id = 'Discrete Q-transform event structure'
-
-  # initialize result vectors
-  significants{outputChannelNumber}.time = []
-  significants{outputChannelNumber}.frequency = []
-  significants{outputChannelNumber}.q = []
-  significants{outputChannelNumber}.duration = []
-  significants{outputChannelNumber}.bandwidth = []
-  significants{outputChannelNumber}.normalizedEnergy = []
-  significants{outputChannelNumber}.amplitude = []
-
-  # initialize overflow flag
-  significants{outputChannelNumber}.overflowFlag = 0
-
-  # include incoherent energy for coherent channels
-  if ~isempty(outputChannels{outputChannelNumber}.referenceChannel),
-    significants{outputChannelNumber}.incoherentEnergy = []
-
-  # fill channel names
-  significants{outputChannelNumber}.channelName = ...
-      outputChannels{outputChannelNumber}.channelName
-
-# end loop over channels
-
-################################################################################
-#                           begin loop over Q planes                           #
-################################################################################
-
-# begin loop over Q planes
-for plane = 1 : tiling.numberOfPlanes,
-
-  ##############################################################################
-  #                              threshold on Q                                #
-  ##############################################################################
-
-  # skip Q planes outside of requested Q range
-  if ((tiling.planes{plane}.q < min(qRange)) || ...
-      (tiling.planes{plane}.q > max(qRange))),
-    continue
-
-  ##############################################################################
-  #                      begin loop over frequency rows                        #
-  ##############################################################################
-
-  # begin loop over frequency rows
-  for row = 1 : tiling.planes{plane}.numberOfRows,
-
-    ###########################################################################
-    #                    threshold on central frequency                       #
-    ###########################################################################
-
-    # skip frequency rows outside of requested frequency range
-    if ((tiling.planes{plane}.rows{row}.frequency < ...
-         min(frequencyRange)) || ...
-        (tiling.planes{plane}.rows{row}.frequency > ...
-         max(frequencyRange))),
-      continue
+    # normalized energy threshold for desired false veto rate
+    if falseVetoProbability == 0:
+        vetoThreshold = float('Inf')
+    else:
+        vetoThreshold = -np.log(falseVetoProbability)
 
     ############################################################################
-    #                       begin loop over channels                           #
+    #                         apply analysis mode                              #
     ############################################################################
+
+    # create empty cell array of significant event structures
+    significants = {}
 
     # begin loop over channels
-    for outputChannelNumber = 1 : numberOfOutputChannels,
+    for channel in np.arange(0,numberOfChannels):
+        channelstr = 'channel' + str(channel)
+        significants[channelstr] = {}
 
-      ##########################################################################
-      #                  extract output channel details                        #
-      ##########################################################################
+        ########################################################################
+        #     initialize statistically significant event structure             #
+        ########################################################################
 
-      # extract output channel structure
-      outputChannel = outputChannels{outputChannelNumber}
+        # initialize result vectors
+        significants[channelstr]['time'] = []
+        significants[channelstr]['frequency'] = []
+        significants[channelstr]['q'] = []
+        significants[channelstr]['duration'] = []
+        significants[channelstr]['bandwidth'] = []
+        significants[channelstr]['normalizedEnergy'] = []
+        significants[channelstr]['amplitude']= []
 
-      # extract output channel details
-      channelName = outputChannel.channelName
-      channelType = outputChannel.channelType
-      signalChannel = outputChannel.signalChannel
-      referenceChannel = outputChannel.referenceChannel
-
-      ##########################################################################
-      #                    threshold on significance                           #
-      ##########################################################################
-
-      # switch on channel type
-      switch channelType,
-        
-        # if signal channel,
-        case 'signal',
-
-          # threshold on signal significance
-          if isempty(referenceChannel),
-            significantTileIndices = find( ...
-                transforms{signalChannel}.planes{plane}.rows{row} ...
-                  .normalizedEnergies >=  ...
-                eventThreshold)
-          else
-            significantTileIndices = find( ...
-                transforms{signalChannel}.planes{plane}.rows{row} ...
-                .normalizedEnergies >= ...
-                eventThreshold + correlationFactor * ...
-                transforms{referenceChannel}.planes{plane}.rows{row} ...
-                .normalizedEnergies)
-
-        # if null channel,
-        case 'null',
-
-          # threshold on null significance
-          significantTileIndices = find( ...
-              transforms{signalChannel}.planes{plane}.rows{row} ...
-              .normalizedEnergies >= ...
-              vetoThreshold + uncertaintyFactor * ...
-              transforms{referenceChannel}.planes{plane}.rows{row} ...
-              .normalizedEnergies)
-
-      # end test for channel type
-
-      ##########################################################################
-      #                    threshold on central time                           #
-      ##########################################################################
-
-     times = (0 :  tiling.planes{plane}.rows{row}.numberOfTiles - 1) * ...
-         tiling.planes{plane}.rows{row}.timeStep
-
-      # skip tiles outside requested time range
-      keepIndices = ...
-          (times(significantTileIndices) >= ...
-           (referenceTime - startTime + min(timeRange))) & ...
-          (times(significantTileIndices) <= ...
-           (referenceTime - startTime + max(timeRange)))
-      significantTileIndices = significantTileIndices(keepIndices)
-
-      # number of statistically significant tiles in frequency row
-      numberOfSignificants = length(significantTileIndices)
-
-      ##########################################################################
-      #      append significant tile properties to event structure             #
-      ##########################################################################
-
-      # append center times of significant tiles in row
-      significants{outputChannelNumber}.time = ...
-          [significants{outputChannelNumber}.time ...
-           times(significantTileIndices) + ...
-           startTime]
-
-      # append center frequencies of significant tiles in row
-      significants{outputChannelNumber}.frequency = ...
-          [significants{outputChannelNumber}.frequency ...
-           tiling.planes{plane}.rows{row}.frequency * ...
-           ones(1, numberOfSignificants)]
-
-      # append qs of significant tiles in row
-      significants{outputChannelNumber}.q = ...
-          [significants{outputChannelNumber}.q ...
-           tiling.planes{plane}.q * ...
-           ones(1, numberOfSignificants)]
-
-      # append durations of significant tiles in row
-      significants{outputChannelNumber}.duration = ...
-          [significants{outputChannelNumber}.duration ...
-           tiling.planes{plane}.rows{row}.duration * ...
-           ones(1, numberOfSignificants)]
-
-      # append bandwidths of significant tiles in row
-      significants{outputChannelNumber}.bandwidth = ...
-          [significants{outputChannelNumber}.bandwidth ...
-           tiling.planes{plane}.rows{row}.bandwidth * ...
-           ones(1, numberOfSignificants)]
-        
-      # append normalized energies of significant tiles in row
-      significants{outputChannelNumber}.normalizedEnergy = ...
-          [significants{outputChannelNumber}.normalizedEnergy ...
-           (transforms{signalChannel}.planes{plane}.rows{row} ...
-            .normalizedEnergies(significantTileIndices))]
-
-      # -- append amplitudes of significant tiles in row
-      if PSD
-        # Compute the amplitude (in sqrt(Hz) units) based on the PSD floor
-        # (harmonic average windowed by the bi-quadratic window of omega)
-
-        # find frequencies in PSD for given tile 
-        qPrime = tiling.planes{plane}.q / sqrt(11)
-        [tmp nearestIndex] = min(abs(PSD(:,1) - tiling.planes{plane}.rows{row}.frequency))
-        inBandMask = abs(PSD(:,1) - tiling.planes{plane}.rows{row}.frequency)*...
-            qPrime < tiling.planes{plane}.rows{row}.frequency & ...
-            PSD(:,1) >= tiling.highPassCutoff & PSD(:,1) <= tiling.lowPassCutoff
-        psdIndices = union(nearestIndex,find(inBandMask))
-        # dimensionless frequency vector for window construction
-        windowArgument = abs(PSD(psdIndices,1) - tiling.planes{plane}.rows{row}.frequency) * ...
-            qPrime / tiling.planes{plane}.rows{row}.frequency
-        # bi square window function
-        window = (1 - windowArgument.^2).^2
-        window = window/norm(window)
-        significants{outputChannelNumber}.amplitude = ...
-            [significants{outputChannelNumber}.amplitude ...
-             sqrt(2*(transforms{signalChannel}.planes{plane}.rows{row} ...
-                   .normalizedEnergies(significantTileIndices) - 1) / ...
-                  dot(window.^2,1./PSD(psdIndices,2)))]
-      else
-        significants{outputChannelNumber}.amplitude = ...
-            [significants{outputChannelNumber}.amplitude ...
-             sqrt((transforms{signalChannel}.planes{plane}.rows{row} ...
-                   .normalizedEnergies(significantTileIndices) - 1) * ...
-                  transforms{signalChannel}.planes{plane}.rows{row}.meanEnergy)]
-
-      # append incoherent energies of significant tiles in row
-      if ~isempty(referenceChannel),
-        significants{outputChannelNumber}.incoherentEnergy = ...
-            [significants{outputChannelNumber}.incoherentEnergy ...
-             (transforms{referenceChannel}.planes{plane}.rows{row} ...
-              .normalizedEnergies(significantTileIndices))]
-      
-      ##########################################################################
-      #             prune excessive significants as we accumulate              #
-      ##########################################################################
-      
-      # determine number of significant tiles in channel
-      numberOfSignificants = length(significants{outputChannelNumber}.time)
-
-      # if maximum allowable number of significant tiles is exceeded
-      if numberOfSignificants > maximumSignificants,
-
-        # issue warning
-        wlog(debugLevel, 2, '#s: trimming excess significants to maximum (#s).\n', ...
-             channelName,maximumSignificants)
-
-        # set overflow flag
-        significants{outputChannelNumber}.overflowFlag = 1
-
-        # sort significant tiles by normalized energy
-        [ignore, maximumIndices] = ...
-            sort(significants{outputChannelNumber}.normalizedEnergy)
-
-        # find indices of most significant tiles
-        maximumIndices = maximumIndices(end - maximumSignificants + 1 : end)
-
-        # extract most significant tile properties
-        significants{outputChannelNumber} = ...
-            wcopyevents(significants{outputChannelNumber}, maximumIndices)
-
-      # otherwise continue
-
-    ############################################################################
-    #                        end loop over channels                            #
-    ############################################################################
+        # initialize overflow flag
+        significants[channelstr]['overflowFlag'] = 0
 
     # end loop over channels
 
-  ##############################################################################
-  #                       end loop over frequency rows                         #
-  ##############################################################################
+    ############################################################################
+    #                       begin loop over Q planes                           #
+    ############################################################################
 
-  # end loop over frequency rows
+    # begin loop over Q planes
+    numberOfPlanes = tiling['generalparams']['numberOfPlanes']
+    for plane in np.arange(0,numberOfPlanes):
+        planestr = 'plane' + str(plane)
 
-################################################################################
-#                            end loop over Q planes                            #
-################################################################################
+        ########################################################################
+        #                        threshold on Q                                #
+        ########################################################################
 
-# end loop over Q planes
+        # skip Q planes outside of requested Q range
+        if ((tiling[planestr]['q'] < min(qRange)) or \
+          (tiling[planestr]['q'] > max(qRange))):
+            break
 
-################################################################################
-#                    return statistically significant tiles                    #
-################################################################################
+        ########################################################################
+        #                begin loop over frequency rows                        #
+        ########################################################################
+
+        numberOfRows = tiling[planestr]['numberOfRows']
+        # begin loop over frequency rows
+        for row in np.arange(0,numberOfRows):
+            rowstr = 'row' + str(row)
+
+            ####################################################################
+            #             threshold on central frequency                       #
+            ####################################################################
+
+            # skip frequency rows outside of requested frequency range
+            if ((tiling[planestr][rowstr].frequency < ...
+                 min(frequencyRange)) || ...
+                (tiling[planestr][rowstr].frequency > ...
+                 max(frequencyRange))),
+                break
+
+            ####################################################################
+            #               begin loop over channels                           #
+            ####################################################################
+
+            # begin loop over channels
+            for channel in np.arange(0,numberOfChannels):
+                channelstr = 'channel' + str(channel)
+
+                ################################################################
+                #          threshold on significance                           #
+                ################################################################
+
+        
+                significantTileIndices = np.where(\
+                    transforms[channelstr][planestr][rowstr]\
+                        ['normalizedEnergies'] >= eventThreshold)
+
+                ################################################################
+                #          threshold on central time                           #
+                ################################################################
+
+                times = np.arange(0,tiling[planestr][rowstr]\
+                           ['numberOfTiles']) * \
+                                     tiling[planestr][rowstr]['timeStep']
+
+                # skip tiles outside requested time range
+                keepIndices = \
+                     np.logical_and(times[significantTileIndices] >= \
+                       (referenceTime - startTime + min(timeRange)), \
+                      times[significantTileIndices] <= \
+                       (referenceTime - startTime + max(timeRange)))
+                significantTileIndices = significantTileIndices[keepIndices]
+
+                # number of statistically significant tiles in frequency row
+                numberOfSignificants = significantTileIndices.size
+
+                ################################################################
+                #     append significant tile properties to event structure    #
+                ################################################################
+
+                # append center times of significant tiles in row
+                significants[channelstr]['time'].append(\
+                       times[significantTileIndices] + startTime)
+
+                # append center frequencies of significant tiles in row
+                significants[channelstr]['frequency'].append(\
+                       tiling[planestr][rowstr]['frequency'] * \
+                       np.ones(numberOfSignificants))
+
+                # append qs of significant tiles in row
+                significants[channelstr]['q'].append(\
+                       tiling[planestr]['q'] * \
+                       np.ones(numberOfSignificants))
+
+                # append durations of significant tiles in row
+                significants[channelstr]['duration'].append(\
+                       tiling[planestr][rowstr]['duration'] * ...
+                       np.ones(numberOfSignificants))
+
+                # append bandwidths of significant tiles in row
+                significants[channelstr]['bandwidth'].append(\
+                       tiling[planestr][rowstr]['bandwidth'] * ...
+                       np.ones(numberOfSignificants))
+        
+                # append normalized energies of significant tiles in row
+                significants[channelstr]['normalizedEnergy'].append(\
+                       transforms[channelstr][planestr][rowstr]\
+                       ['normalizedEnergies'][significantTileIndices])
+
+                # -- append amplitudes of significant tiles in row
+                if PSD is not None:
+                    # Compute the amplitude (in sqrt(Hz) units) based on the PSD floor
+                    # (harmonic average windowed by the bi-quadratic window of omega)
+
+                    # find frequencies in PSD for given tile 
+                    qPrime = tiling[planestr].q / sqrt(11)
+                    [tmp nearestIndex] = min(abs(PSD(:,1) - tiling[planestr][rowstr].frequency))
+                    inBandMask = abs(PSD(:,1) - tiling[planestr][rowstr].frequency)*...
+                    qPrime < tiling[planestr][rowstr].frequency & ...
+                    PSD(:,1) >= tiling.highPassCutoff & PSD(:,1) <= tiling.lowPassCutoff
+                    psdIndices = union(nearestIndex,find(inBandMask))
+                    # dimensionless frequency vector for window construction
+                    windowArgument = abs(PSD(psdIndices,1) - tiling[planestr][rowstr].frequency) * ...
+                    qPrime / tiling[planestr][rowstr].frequency
+                    # bi square window function
+                    window = (1 - windowArgument.^2).^2
+                    window = window/norm(window)
+                    significants[channelstr]['amplitude']= ...
+                        [significants[channelstr]['amplitude']...
+                        sqrt(2*(transforms[channelstr][planestr][rowstr] ...
+                        .normalizedEnergies(significantTileIndices) - 1) / ...
+                        dot(window.^2,1./PSD(psdIndices,2)))]
+                else:
+                    significants[channelstr]['amplitude']= ...
+                        [significants[channelstr]['amplitude']...
+                        np.sqrt((transforms[channelstr][planestr][rowstr] ...
+                        .normalizedEnergies(significantTileIndices) - 1) * ...
+                        transforms[channelstr][planestr][rowstr].meanEnergy)]
+
+                ################################################################
+                #   prune excessive significants as we accumulate              #
+                ################################################################
+      
+                # determine number of significant tiles in channel
+                numberOfSignificants = length(significants[channelstr]['time'])
+
+                # if maximum allowable number of significant tiles is exceeded
+                if numberOfSignificants > maximumSignificants,
+
+                    # set overflow flag
+                    significants[channelstr]['overflowFlag'] = 1
+
+                    # sort significant tiles by normalized energy
+                    [ignore, maximumIndices] = ...
+                    sort(significants[channelstr]['normalizedEnergy'])
+
+                    # find indices of most significant tiles
+                    maximumIndices = maximumIndices(end - maximumSignificants + 1 : end)
+
+                    # extract most significant tile properties
+                    significants[channelstr] = ...
+                           wcopyevents(significants[channelstr], maximumIndices)
+
+                    # otherwise continue
+
+            ####################################################################
+            #                end loop over channels                            #
+            ####################################################################
+
+            # end loop over channels
+
+        ########################################################################
+        #                 end loop over frequency rows                         #
+        ########################################################################
+
+        # end loop over frequency rows
+
+     ###########################################################################
+     #                       end loop over Q planes                            #
+     ###########################################################################
+
+     # end loop over Q planes
+
+     ###########################################################################
+     #               return statistically significant tiles                    #
+     ###########################################################################
 
     return significants
+
 ###############################################################################
 ##########################                     ################################
 ##########################      wmeasure       ################################
@@ -1507,7 +1402,7 @@ def wmeasure(transforms, tiling, startTime,
 
     # apply default arguments
     if not referenceTime:
-        referenceTime = startTime + tiling.duration / 2
+        referenceTime = startTime + tiling['generalparams']['duration'] / 2
 
 #    if not timeRange:
 #      timeRange = 0.5 * \
