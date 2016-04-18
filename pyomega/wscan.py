@@ -1025,7 +1025,7 @@ def threshold(transforms, tiling, startTime, falseEventRate,
 
     # apply default arguments
     if referenceTime is None:
-        referenceTime = startTime + tiling.duration / 2;
+        referenceTime = startTime + tiling.duration / 2
 
     if timeRange is None:
         timeRange = 0.5 * (tiling.duration - 2 * tiling.transientDuration) * [-1 +1]
@@ -1054,24 +1054,18 @@ def threshold(transforms, tiling, startTime, falseEventRate,
     if PSD is None:
         PSD = 0
 
-# force cell arrays
-transforms = wmat2cell(transforms);
-
-# force one dimensional cell arrays
-transforms = transforms(:);
-
 # determine number of channels
-numberOfChannels = length(transforms);
+numberOfChannels = 1
 
 # force ranges to be monotonically increasing column vectors
-timeRange = unique(timeRange(:));
-frequencyRange = unique(frequencyRange(:));
-qRange = unique(qRange(:));
+timeRange = unique(timeRange(:))
+frequencyRange = unique(frequencyRange(:))
+qRange = unique(qRange(:))
 
 # if only a single Q is requested, find nearest Q plane
 if length(qRange) == 1,
-  [ignore, qPlane] = min(abs(log(tiling.qs / qRange)));
-  qRange = tiling.qs(qPlane) * [1 1];
+  [ignore, qPlane] = min(abs(log(tiling.qs / qRange)))
+  qRange = tiling.qs(qPlane) * [1 1]
 end
 
 ################################################################################
@@ -1080,26 +1074,26 @@ end
 
 # validate tiling structure
 if ~strcmp(tiling.id, 'Discrete Q-transform tile structure'),
-  error('input argument is not a discrete Q transform tiling structure');
+  error('input argument is not a discrete Q transform tiling structure')
 end
 
 # validate transform structures
 for channelNumber = 1 : numberOfChannels,
   if ~strcmp(transforms{channelNumber}.id, ...
              'Discrete Q-transform transform structure'),
-    error('input argument is not a discrete Q transform structure');
+    error('input argument is not a discrete Q transform structure')
   end
 end
 
 # Check for two component range vectors
 if length(timeRange) ~= 2,
-  error('Time range must be two component vector [tmin tmax].');
+  error('Time range must be two component vector [tmin tmax].')
 end
 if length(frequencyRange) ~= 2,
-  error('Frequency range must be two component vector [fmin fmax].');
+  error('Frequency range must be two component vector [fmin fmax].')
 end
 if length(qRange) > 2,
-  error('Q range must be scalar or two component vector [Qmin Qmax].');
+  error('Q range must be scalar or two component vector [Qmin Qmax].')
 end
 
 ################################################################################
@@ -1107,25 +1101,25 @@ end
 ################################################################################
 
 # approximate number of statistically independent tiles per second
-independentsRate = tiling.numberOfIndependents / tiling.duration;
+independentsRate = tiling.numberOfIndependents / tiling.duration
 
 # apply emperically determined correction factor
-independentsRate = independentsRate * 1.5;
+independentsRate = independentsRate * 1.5
 
 # probability associated with desired false event rate
-falseEventProbability = falseEventRate / independentsRate;
+falseEventProbability = falseEventRate / independentsRate
 
 # probability associated with desired false veto rate
-falseVetoProbability = falseVetoRate / independentsRate;
+falseVetoProbability = falseVetoRate / independentsRate
 
 # normalized energy threshold for desired false event rate
-eventThreshold = -log(falseEventProbability);
+eventThreshold = -log(falseEventProbability)
 
 # normalized energy threshold for desired false veto rate
 if falseVetoProbability == 0,
-  vetoThreshold = Inf;
+  vetoThreshold = Inf
 else
-  vetoThreshold = -log(falseVetoProbability);
+  vetoThreshold = -log(falseVetoProbability)
 end
 
 ################################################################################
@@ -1140,72 +1134,72 @@ switch lower(analysisMode),
     # threshold on all signal channels individually
     for channelNumber = 1 : numberOfChannels,
       outputChannels{channelNumber}.channelName = ...
-          transforms{channelNumber}.channelName;
-      outputChannels{channelNumber}.channelType = 'signal';
-      outputChannels{channelNumber}.signalChannel = channelNumber;
-      outputChannels{channelNumber}.referenceChannel = [];
+          transforms{channelNumber}.channelName
+      outputChannels{channelNumber}.channelType = 'signal'
+      outputChannels{channelNumber}.signalChannel = channelNumber
+      outputChannels{channelNumber}.referenceChannel = []
     end
 
   case {'coherent'},
 
     # threshold on signal channel
     outputChannels{1}.channelName = ...
-        regexprep(transforms{1}.channelName, '-.*$', '');
-    outputChannels{1}.channelType = 'signal';
-    outputChannels{1}.signalChannel = 1;
-    outputChannels{1}.referenceChannel = 2;
+        regexprep(transforms{1}.channelName, '-.*$', '')
+    outputChannels{1}.channelType = 'signal'
+    outputChannels{1}.signalChannel = 1
+    outputChannels{1}.referenceChannel = 2
 
     # threshold on null channel
     if numberOfChannels > 2,
       outputChannels{2}.channelName = ...
-          regexprep(transforms{3}.channelName, '-.*$', '');
-      outputChannels{2}.channelType = 'null';
-      outputChannels{2}.signalChannel = 3;
-      outputChannels{2}.referenceChannel = 4;
+          regexprep(transforms{3}.channelName, '-.*$', '')
+      outputChannels{2}.channelType = 'null'
+      outputChannels{2}.signalChannel = 3
+      outputChannels{2}.referenceChannel = 4
     end
 
   otherwise,
-    error(['unknown analysis mode "' analysisMode '"']);
+    error(['unknown analysis mode "' analysisMode '"'])
 
 # end switch on analysis mode
 end
 
 # number of output channels
-numberOfOutputChannels = length(outputChannels);
+numberOfOutputChannels = length(outputChannels)
 
 ################################################################################
 #             initialize statistically significant event structure             #
 ################################################################################
 
 # create empty cell array of significant event structures
-significants = cell(numberOfOutputChannels, 1);
+significants = cell(numberOfOutputChannels, 1)
 
 # begin loop over channels
 for outputChannelNumber = 1 : numberOfOutputChannels
 
   # insert structure identification string
-  significants{outputChannelNumber}.id = 'Discrete Q-transform event structure';
+  significants{outputChannelNumber}.id = 'Discrete Q-transform event structure'
 
   # initialize result vectors
-  significants{outputChannelNumber}.time = [];
-  significants{outputChannelNumber}.frequency = [];
-  significants{outputChannelNumber}.q = [];
-  significants{outputChannelNumber}.duration = [];
-  significants{outputChannelNumber}.bandwidth = [];
-  significants{outputChannelNumber}.normalizedEnergy = [];
-  significants{outputChannelNumber}.amplitude = [];
+  significants{outputChannelNumber}.time = []
+  significants{outputChannelNumber}.frequency = []
+  significants{outputChannelNumber}.q = []
+  significants{outputChannelNumber}.duration = []
+  significants{outputChannelNumber}.bandwidth = []
+  significants{outputChannelNumber}.normalizedEnergy = []
+  significants{outputChannelNumber}.amplitude = []
 
   # initialize overflow flag
-  significants{outputChannelNumber}.overflowFlag = 0;
+  significants{outputChannelNumber}.overflowFlag = 0
 
   # include incoherent energy for coherent channels
   if ~isempty(outputChannels{outputChannelNumber}.referenceChannel),
-    significants{outputChannelNumber}.incoherentEnergy = [];
+    significants{outputChannelNumber}.incoherentEnergy = []
   end
 
   # fill channel names
   significants{outputChannelNumber}.channelName = ...
-      outputChannels{outputChannelNumber}.channelName;
+      outputChannels{outputChannelNumber}.channelName
 
 # end loop over channels
 end
@@ -1224,7 +1218,7 @@ for plane = 1 : tiling.numberOfPlanes,
   # skip Q planes outside of requested Q range
   if ((tiling.planes{plane}.q < min(qRange)) || ...
       (tiling.planes{plane}.q > max(qRange))),
-    continue;
+    continue
   end
 
   ##############################################################################
@@ -1243,7 +1237,7 @@ for plane = 1 : tiling.numberOfPlanes,
          min(frequencyRange)) || ...
         (tiling.planes{plane}.rows{row}.frequency > ...
          max(frequencyRange))),
-      continue;
+      continue
     end
 
     ############################################################################
@@ -1258,13 +1252,13 @@ for plane = 1 : tiling.numberOfPlanes,
       ##########################################################################
 
       # extract output channel structure
-      outputChannel = outputChannels{outputChannelNumber};
+      outputChannel = outputChannels{outputChannelNumber}
 
       # extract output channel details
-      channelName = outputChannel.channelName;
-      channelType = outputChannel.channelType;
-      signalChannel = outputChannel.signalChannel;
-      referenceChannel = outputChannel.referenceChannel;
+      channelName = outputChannel.channelName
+      channelType = outputChannel.channelType
+      signalChannel = outputChannel.signalChannel
+      referenceChannel = outputChannel.referenceChannel
 
       ##########################################################################
       #                    threshold on significance                           #
@@ -1281,14 +1275,14 @@ for plane = 1 : tiling.numberOfPlanes,
             significantTileIndices = find( ...
                 transforms{signalChannel}.planes{plane}.rows{row} ...
                   .normalizedEnergies >=  ...
-                eventThreshold);
+                eventThreshold)
           else
             significantTileIndices = find( ...
                 transforms{signalChannel}.planes{plane}.rows{row} ...
                 .normalizedEnergies >= ...
                 eventThreshold + correlationFactor * ...
                 transforms{referenceChannel}.planes{plane}.rows{row} ...
-                .normalizedEnergies);
+                .normalizedEnergies)
           end
 
         # if null channel,
@@ -1300,7 +1294,7 @@ for plane = 1 : tiling.numberOfPlanes,
               .normalizedEnergies >= ...
               vetoThreshold + uncertaintyFactor * ...
               transforms{referenceChannel}.planes{plane}.rows{row} ...
-              .normalizedEnergies);
+              .normalizedEnergies)
 
       # end test for channel type
       end
@@ -1310,18 +1304,18 @@ for plane = 1 : tiling.numberOfPlanes,
       ##########################################################################
 
      times = (0 :  tiling.planes{plane}.rows{row}.numberOfTiles - 1) * ...
-         tiling.planes{plane}.rows{row}.timeStep;
+         tiling.planes{plane}.rows{row}.timeStep
 
       # skip tiles outside requested time range
       keepIndices = ...
           (times(significantTileIndices) >= ...
            (referenceTime - startTime + min(timeRange))) & ...
           (times(significantTileIndices) <= ...
-           (referenceTime - startTime + max(timeRange)));
-      significantTileIndices = significantTileIndices(keepIndices);
+           (referenceTime - startTime + max(timeRange)))
+      significantTileIndices = significantTileIndices(keepIndices)
 
       # number of statistically significant tiles in frequency row
-      numberOfSignificants = length(significantTileIndices);
+      numberOfSignificants = length(significantTileIndices)
 
       ##########################################################################
       #      append significant tile properties to event structure             #
@@ -1331,37 +1325,37 @@ for plane = 1 : tiling.numberOfPlanes,
       significants{outputChannelNumber}.time = ...
           [significants{outputChannelNumber}.time ...
            times(significantTileIndices) + ...
-           startTime];
+           startTime]
 
       # append center frequencies of significant tiles in row
       significants{outputChannelNumber}.frequency = ...
           [significants{outputChannelNumber}.frequency ...
            tiling.planes{plane}.rows{row}.frequency * ...
-           ones(1, numberOfSignificants)];
+           ones(1, numberOfSignificants)]
 
       # append qs of significant tiles in row
       significants{outputChannelNumber}.q = ...
           [significants{outputChannelNumber}.q ...
            tiling.planes{plane}.q * ...
-           ones(1, numberOfSignificants)];
+           ones(1, numberOfSignificants)]
 
       # append durations of significant tiles in row
       significants{outputChannelNumber}.duration = ...
           [significants{outputChannelNumber}.duration ...
            tiling.planes{plane}.rows{row}.duration * ...
-           ones(1, numberOfSignificants)];
+           ones(1, numberOfSignificants)]
 
       # append bandwidths of significant tiles in row
       significants{outputChannelNumber}.bandwidth = ...
           [significants{outputChannelNumber}.bandwidth ...
            tiling.planes{plane}.rows{row}.bandwidth * ...
-           ones(1, numberOfSignificants)];
+           ones(1, numberOfSignificants)]
         
       # append normalized energies of significant tiles in row
       significants{outputChannelNumber}.normalizedEnergy = ...
           [significants{outputChannelNumber}.normalizedEnergy ...
            (transforms{signalChannel}.planes{plane}.rows{row} ...
-            .normalizedEnergies(significantTileIndices))];
+            .normalizedEnergies(significantTileIndices))]
 
       # -- append amplitudes of significant tiles in row
       if PSD
@@ -1369,29 +1363,29 @@ for plane = 1 : tiling.numberOfPlanes,
         # (harmonic average windowed by the bi-quadratic window of omega)
 
         # find frequencies in PSD for given tile 
-        qPrime = tiling.planes{plane}.q / sqrt(11);
-        [tmp nearestIndex] = min(abs(PSD(:,1) - tiling.planes{plane}.rows{row}.frequency));
+        qPrime = tiling.planes{plane}.q / sqrt(11)
+        [tmp nearestIndex] = min(abs(PSD(:,1) - tiling.planes{plane}.rows{row}.frequency))
         inBandMask = abs(PSD(:,1) - tiling.planes{plane}.rows{row}.frequency)*...
             qPrime < tiling.planes{plane}.rows{row}.frequency & ...
-            PSD(:,1) >= tiling.highPassCutoff & PSD(:,1) <= tiling.lowPassCutoff;
-        psdIndices = union(nearestIndex,find(inBandMask));
+            PSD(:,1) >= tiling.highPassCutoff & PSD(:,1) <= tiling.lowPassCutoff
+        psdIndices = union(nearestIndex,find(inBandMask))
         # dimensionless frequency vector for window construction
         windowArgument = abs(PSD(psdIndices,1) - tiling.planes{plane}.rows{row}.frequency) * ...
-            qPrime / tiling.planes{plane}.rows{row}.frequency;
+            qPrime / tiling.planes{plane}.rows{row}.frequency
         # bi square window function
-        window = (1 - windowArgument.^2).^2;
-        window = window/norm(window);
+        window = (1 - windowArgument.^2).^2
+        window = window/norm(window)
         significants{outputChannelNumber}.amplitude = ...
             [significants{outputChannelNumber}.amplitude ...
              sqrt(2*(transforms{signalChannel}.planes{plane}.rows{row} ...
                    .normalizedEnergies(significantTileIndices) - 1) / ...
-                  dot(window.^2,1./PSD(psdIndices,2)))];
+                  dot(window.^2,1./PSD(psdIndices,2)))]
       else
         significants{outputChannelNumber}.amplitude = ...
             [significants{outputChannelNumber}.amplitude ...
              sqrt((transforms{signalChannel}.planes{plane}.rows{row} ...
                    .normalizedEnergies(significantTileIndices) - 1) * ...
-                  transforms{signalChannel}.planes{plane}.rows{row}.meanEnergy)];
+                  transforms{signalChannel}.planes{plane}.rows{row}.meanEnergy)]
       end
 
       # append incoherent energies of significant tiles in row
@@ -1399,7 +1393,7 @@ for plane = 1 : tiling.numberOfPlanes,
         significants{outputChannelNumber}.incoherentEnergy = ...
             [significants{outputChannelNumber}.incoherentEnergy ...
              (transforms{referenceChannel}.planes{plane}.rows{row} ...
-              .normalizedEnergies(significantTileIndices))];
+              .normalizedEnergies(significantTileIndices))]
       end
       
       ##########################################################################
@@ -1407,28 +1401,28 @@ for plane = 1 : tiling.numberOfPlanes,
       ##########################################################################
       
       # determine number of significant tiles in channel
-      numberOfSignificants = length(significants{outputChannelNumber}.time);
+      numberOfSignificants = length(significants{outputChannelNumber}.time)
 
       # if maximum allowable number of significant tiles is exceeded
       if numberOfSignificants > maximumSignificants,
 
         # issue warning
         wlog(debugLevel, 2, '#s: trimming excess significants to maximum (#s).\n', ...
-             channelName,maximumSignificants);
+             channelName,maximumSignificants)
 
         # set overflow flag
-        significants{outputChannelNumber}.overflowFlag = 1;
+        significants{outputChannelNumber}.overflowFlag = 1
 
         # sort significant tiles by normalized energy
         [ignore, maximumIndices] = ...
-            sort(significants{outputChannelNumber}.normalizedEnergy);
+            sort(significants{outputChannelNumber}.normalizedEnergy)
 
         # find indices of most significant tiles
-        maximumIndices = maximumIndices(end - maximumSignificants + 1 : end);
+        maximumIndices = maximumIndices(end - maximumSignificants + 1 : end)
 
         # extract most significant tile properties
         significants{outputChannelNumber} = ...
-            wcopyevents(significants{outputChannelNumber}, maximumIndices);
+            wcopyevents(significants{outputChannelNumber}, maximumIndices)
 
       # otherwise continue
       end      
@@ -2342,7 +2336,7 @@ if __name__ == '__main__':
           whitenedProperties['channel0']['peakQ']
 
     # identify significant whitened q transform tiles
-    thresholdReferenceTime = centerTime;
+    thresholdReferenceTime = centerTime
     thresholdTimeRange = 0.5 * np.array([-1,1]) * \
                (max(plotTimeRanges) + \
                tiling[planes{end}.['row0']['duration'] * plotDurationInflation)
@@ -2373,4 +2367,4 @@ if __name__ == '__main__':
     weventgram(whitenedSignificants, tiling, startTime, centerTime, \
                  plotTimeRange * [-1 +1] / 2, plotFrequencyRange, \
                  plotDurationInflation, plotBandwidthInflation, \
-                 plotNormalizedEnergyRange);
+                 plotNormalizedEnergyRange)
