@@ -1019,47 +1019,40 @@ def threshold(transforms, tiling, startTime, falseEventRate,
     Leo C. Stein <lstein@ligo.mit.edu>
     """
 
-################################################################################
-#                        process command line arguments                        #
-################################################################################
+    ############################################################################
+    #                    process command line arguments                        #
+    ############################################################################
 
-# verify correct number of input arguments
-error(nargchk(4, 15, nargin, 'struct'));
+    # apply default arguments
+    if referenceTime is None:
+        referenceTime = startTime + tiling.duration / 2;
 
-# apply default arguments
-if (nargin < 5) || isempty(referenceTime),
-  referenceTime = startTime + tiling.duration / 2;
-end
-if (nargin < 6) || isempty(timeRange),
-  timeRange = 0.5 * (tiling.duration - 2 * tiling.transientDuration) * [-1 +1];
-end
-if (nargin < 7) || isempty(frequencyRange),
-  frequencyRange = [-Inf +Inf];
-end
-if (nargin < 8) || isempty(qRange),
-  qRange = [-Inf +Inf];
-end
-if (nargin < 9) || isempty(maximumSignificants),
-  maximumSignificants = Inf;
-end
-if (nargin < 10) || isempty(analysisMode),
-  analysisMode = 'independent';
-end
-if (nargin < 11) || isempty(falseVetoRate),
-  falseVetoRate = 0;
-end
-if (nargin < 12) || isempty(uncertaintyFactor),
-  uncertaintyFactor = 0;
-end
-if (nargin < 13) || isempty(correlationFactor),
-  correlationFactor = 0;
-end
-if (nargin < 14) || isempty(debugLevel),
-  debugLevel = 1;
-end
-if (nargin < 15) || isempty(PSD),
-  PSD = 0;
-end
+    if timeRange is None:
+        timeRange = 0.5 * (tiling.duration - 2 * tiling.transientDuration) * [-1 +1]
+
+    if frequencyRange is None:
+        frequencyRange = [float('-Inf'),float('Inf')]
+
+    if qRange is None:
+        qRange = [float('-Inf'),float('Inf')]
+
+    if maximumSignificants is None:
+        maximumSignificants = float('Inf')
+
+    if analysisMode is None:
+        analysisMode = 'independent'
+
+    if falseVetoRate is None:
+        falseVetoRate = 0
+
+    if uncertaintyFactor is None:
+        uncertaintyFactor = 0
+
+    if correlationFactor is None:
+        correlationFactor = 0
+
+    if PSD is None:
+        PSD = 0
 
 # force cell arrays
 transforms = wmat2cell(transforms);
