@@ -920,6 +920,108 @@ def wtransform(data, tiling, outlierFactor,
 
 ###############################################################################
 ##########################                     ################################
+##########################      wthreshold     ################################
+##########################                     ################################
+###############################################################################
+
+def threshold(transforms, tiling, startTime, falseEventRate,
+             referenceTime, timeRange, frequencyRange, qRange,
+             maximumSignificants,analysisMode,falseVetoRate,
+             uncertaintyFactor,correlationFactor, PSD):
+
+    """WTHRESHOLD Identify statistically significant tiles in Discrete Q 
+    transforms
+
+    WTHRESHOLD identifies discrete Q transform coefficients whose magnitudes
+    exceed the threshold that approximately yields the specified single channel
+    false rate assuming ideal white noise.
+
+    usage: significants = ...
+             wthreshold(transforms, tiling, startTime, falseEventRate, \
+                       referenceTime, timeRange, frequencyRange, qRange, \
+                        maximumSignificants, analysisMode, falseVetoRate, \
+                        uncertaintyFactor, correlationFactor, debugLevel)
+
+            transforms           cell array of input Q transform structures
+            tiling               discrete Q transform tiling structure from WTILE
+            startTime            GPS start time of Q transformed data
+            falseEventRate       desired white noise false event rate [Hz]
+            referenceTime        reference time for time range to threshold on
+            timeRange            vector range of relative times to threshold on
+            frequencyRange       vector range of frequencies to threshold on
+            qRange               scalar Q or vector range of Qs to threshold on
+            maximumSignificants  maximum allowable number of significant tiles
+            analysisMode         string name of analysis mode to implement
+            falseVetoRate        desired white noise veto rate [Hz]
+            uncertaintyFactor    squared calibration uncertainty factor
+            correlationFactor    fractional correlated energy threshold
+            PSD                  measured PSD as outputted by wcondition
+
+            significants         cell array of Q transform event structures
+
+    WTHRESHOLD returns a cell array of Q transform event structures that
+    contain the properties of the identified statistically significant tiles
+    for each channel.  The event structure contains the following fields.
+
+            time                 center time of tile [gps seconds]
+            frequency            center frequency of tile [Hz]
+            q                    quality factor of tile []
+            duration             duration of tile [seconds]
+            bandwidth            bandwidth of tile [Hz]
+            normalizedEnergy     normalized energy of tile []
+            amplitude            signal amplitude of tile [Hz^-1/2]
+            overflowFlag         boolean overflow flag
+
+    The user can focus on a subset of the times and frequencies available in
+    the transform data by specifying a desired range of central times,
+    central frequencies, and Qs to threshold on.  Ranges should be specified
+    as a two component vector, consisting of a minimum and maximum value.
+    Alternatively, if only a single Q is specified, WTHRESHOLD is only
+    applied to the time-frequency plane which has the nearest value of Q in a
+    logarithmic sense to the requested value.
+
+    To determine the range of central times to threshold on, WTHRESHOLD
+    requires the start time of the transformed data in addition to a
+    reference time and a relative time range.  Both the start time and
+    reference time should be specified as absolute quantities, while the
+    range of times to analyze should be specified relative to the requested
+    reference time.
+
+    By default, WTHRESHOLD is applied to all available frequencies and Qs,
+    and the reference time and relative time range arguments are set to
+    exclude data potentially corrupted by filter transients as identified by
+    the transient duration field of the tiling structure.  The default value 
+    can be obtained for any argument by passing the empty matrix [].
+
+    The threshold is set to yield the specified false event rate when applied
+    to all available frequencies and Qs, and is not modified to account for
+    restricted ranges.  It is also only a rough estimate, and the result
+    false event rate may vary significantly depending on the quality of the
+    data.
+
+    If provided, the optional analysisMode string is used by WTHRESHOLD to
+    determine which channels are signal channels, which channels are null
+    channels, and which channels to report results for.  For coherent analysis
+    modes, a desired white noise veto rate, squared calibration uncertainy
+    factor, and required signal correlation factor must also be specified.
+
+    The optional maximumSignificants argument provides a safety mechanism to
+    limit the total number of events returned by WTHRESHOLD.  If this maximum
+    number of significants is exceeded, the overflow flag is set, only the
+    maximumSignificants most significant tiles are returned, and a warning is
+    issued if debugLevel is set to 1 or higher.  By default, maximumSignificants
+    is set to infinity and debugLevel is set to unity.
+
+    See also WTILE, WCONDITION, WTRANSFORM, WSELECT, WEXAMPLE, and WSEARCH.
+
+    Authors:
+    Shourov K. Chatterji <shourov@ligo.caltech.edu>
+    Leo C. Stein <lstein@ligo.mit.edu>
+    """
+
+    return significants
+###############################################################################
+##########################                     ################################
 ##########################      wmeasure       ################################
 ##########################                     ################################
 ###############################################################################
