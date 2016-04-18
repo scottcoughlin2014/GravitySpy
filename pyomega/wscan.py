@@ -1054,47 +1054,28 @@ def threshold(transforms, tiling, startTime, falseEventRate,
     if PSD is None:
         PSD = 0
 
-# determine number of channels
-numberOfChannels = 1
+    # determine number of channels
+    numberOfChannels = 1
 
-# force ranges to be monotonically increasing column vectors
-timeRange = unique(timeRange(:))
-frequencyRange = unique(frequencyRange(:))
-qRange = unique(qRange(:))
+    # if only a single Q is requested, find nearest Q plane
+    if len(qRange) == 1:
+        [ignore, qPlane] = min(abs(np.log(tiling['generalparams']['qs']) / \
+                                 qRange))
+        qRange = tiling['generalparams']['qs'][qPlane] * [1,1]
 
-# if only a single Q is requested, find nearest Q plane
-if length(qRange) == 1,
-  [ignore, qPlane] = min(abs(log(tiling.qs / qRange)))
-  qRange = tiling.qs(qPlane) * [1 1]
-end
+    ############################################################################
+    #                   validate command line arguments                        #
+    ############################################################################
 
-################################################################################
-#                       validate command line arguments                        #
-################################################################################
+    # Check for two component range vectors
+    if timeRange.size != 2:
+        raise ValueError('Time range must be two component vector [tmin tmax].')
 
-# validate tiling structure
-if ~strcmp(tiling.id, 'Discrete Q-transform tile structure'),
-  error('input argument is not a discrete Q transform tiling structure')
-end
+    if frequencyRange.size != 2:
+        raise ValueError('Frequency range must be two component vector [fmin fmax].')
 
-# validate transform structures
-for channelNumber = 1 : numberOfChannels,
-  if ~strcmp(transforms{channelNumber}.id, ...
-             'Discrete Q-transform transform structure'),
-    error('input argument is not a discrete Q transform structure')
-  end
-end
-
-# Check for two component range vectors
-if length(timeRange) ~= 2,
-  error('Time range must be two component vector [tmin tmax].')
-end
-if length(frequencyRange) ~= 2,
-  error('Frequency range must be two component vector [fmin fmax].')
-end
-if length(qRange) > 2,
-  error('Q range must be scalar or two component vector [Qmin Qmax].')
-end
+    if qRange.size > 2:
+        raise ValueError('Q range must be scalar or two component vector [Qmin Qmax].')
 
 ################################################################################
 #                         normalized energy threshold                          #
@@ -1120,7 +1101,6 @@ if falseVetoProbability == 0,
   vetoThreshold = Inf
 else
   vetoThreshold = -log(falseVetoProbability)
-end
 
 ################################################################################
 #                             apply analysis mode                              #
@@ -1195,14 +1175,12 @@ for outputChannelNumber = 1 : numberOfOutputChannels
   # include incoherent energy for coherent channels
   if ~isempty(outputChannels{outputChannelNumber}.referenceChannel),
     significants{outputChannelNumber}.incoherentEnergy = []
-  end
 
   # fill channel names
   significants{outputChannelNumber}.channelName = ...
       outputChannels{outputChannelNumber}.channelName
 
 # end loop over channels
-end
 
 ################################################################################
 #                           begin loop over Q planes                           #
@@ -1219,7 +1197,6 @@ for plane = 1 : tiling.numberOfPlanes,
   if ((tiling.planes{plane}.q < min(qRange)) || ...
       (tiling.planes{plane}.q > max(qRange))),
     continue
-  end
 
   ##############################################################################
   #                      begin loop over frequency rows                        #
@@ -1238,7 +1215,6 @@ for plane = 1 : tiling.numberOfPlanes,
         (tiling.planes{plane}.rows{row}.frequency > ...
          max(frequencyRange))),
       continue
-    end
 
     ############################################################################
     #                       begin loop over channels                           #
@@ -1283,7 +1259,6 @@ for plane = 1 : tiling.numberOfPlanes,
                 eventThreshold + correlationFactor * ...
                 transforms{referenceChannel}.planes{plane}.rows{row} ...
                 .normalizedEnergies)
-          end
 
         # if null channel,
         case 'null',
@@ -1297,7 +1272,6 @@ for plane = 1 : tiling.numberOfPlanes,
               .normalizedEnergies)
 
       # end test for channel type
-      end
 
       ##########################################################################
       #                    threshold on central time                           #
@@ -1386,7 +1360,6 @@ for plane = 1 : tiling.numberOfPlanes,
              sqrt((transforms{signalChannel}.planes{plane}.rows{row} ...
                    .normalizedEnergies(significantTileIndices) - 1) * ...
                   transforms{signalChannel}.planes{plane}.rows{row}.meanEnergy)]
-      end
 
       # append incoherent energies of significant tiles in row
       if ~isempty(referenceChannel),
@@ -1394,7 +1367,6 @@ for plane = 1 : tiling.numberOfPlanes,
             [significants{outputChannelNumber}.incoherentEnergy ...
              (transforms{referenceChannel}.planes{plane}.rows{row} ...
               .normalizedEnergies(significantTileIndices))]
-      end
       
       ##########################################################################
       #             prune excessive significants as we accumulate              #
@@ -1425,28 +1397,24 @@ for plane = 1 : tiling.numberOfPlanes,
             wcopyevents(significants{outputChannelNumber}, maximumIndices)
 
       # otherwise continue
-      end      
 
     ############################################################################
     #                        end loop over channels                            #
     ############################################################################
 
     # end loop over channels
-    end
 
   ##############################################################################
   #                       end loop over frequency rows                         #
   ##############################################################################
 
   # end loop over frequency rows
-  end
 
 ################################################################################
 #                            end loop over Q planes                            #
 ################################################################################
 
 # end loop over Q planes
-end
 
 ################################################################################
 #                    return statistically significant tiles                    #
