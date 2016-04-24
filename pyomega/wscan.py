@@ -924,7 +924,7 @@ def wtransform(data, tiling, outlierFactor,
 ##########################                     ################################
 ###############################################################################
 
-def threshold(transforms, tiling, startTime, falseEventRate,
+def wthreshold(transforms, tiling, startTime, falseEventRate,
              referenceTime, timeRange, frequencyRange, qRange,
              maximumSignificants,analysisMode,falseVetoRate,
              uncertaintyFactor,correlationFactor, PSD):
@@ -1068,10 +1068,10 @@ def threshold(transforms, tiling, startTime, falseEventRate,
     if timeRange.size != 2:
         raise ValueError('Time range must be two component vector [tmin tmax].')
 
-    if frequencyRange.size != 2:
+    if len(frequencyRange) != 2:
         raise ValueError('Frequency range must be two component vector [fmin fmax].')
-
-    if qRange.size > 2:
+    print qRange
+    if len(qRange) > 2:
         raise ValueError('Q range must be scalar or two component vector [Qmin Qmax].')
 
     ############################################################################
@@ -1145,7 +1145,7 @@ def threshold(transforms, tiling, startTime, falseEventRate,
         # skip Q planes outside of requested Q range
         if ((tiling[planestr]['q'] < min(qRange)) or \
           (tiling[planestr]['q'] > max(qRange))):
-            break
+            continue
 
         ########################################################################
         #                begin loop over frequency rows                        #
@@ -1161,11 +1161,11 @@ def threshold(transforms, tiling, startTime, falseEventRate,
             ####################################################################
 
             # skip frequency rows outside of requested frequency range
-            if ((tiling[planestr][rowstr].frequency < ...
-                 min(frequencyRange)) || ...
-                (tiling[planestr][rowstr].frequency > ...
-                 max(frequencyRange))),
-                break
+            if ((tiling[planestr][rowstr]['frequency'] < \
+                 min(frequencyRange)) or \
+                (tiling[planestr][rowstr]['frequency'] > \
+                 max(frequencyRange))):
+                    continue
 
             ####################################################################
             #               begin loop over channels                           #
@@ -1179,10 +1179,9 @@ def threshold(transforms, tiling, startTime, falseEventRate,
                 #          threshold on significance                           #
                 ################################################################
 
-        
-                significantTileIndices = np.where(\
+                significantTileIndices = np.argwhere(\
                     transforms[channelstr][planestr][rowstr]\
-                        ['normalizedEnergies'] >= eventThreshold)
+                        ['normalizedEnergies'] <= eventThreshold)
 
                 ################################################################
                 #          threshold on central time                           #
@@ -1198,7 +1197,13 @@ def threshold(transforms, tiling, startTime, falseEventRate,
                        (referenceTime - startTime + min(timeRange)), \
                       times[significantTileIndices] <= \
                        (referenceTime - startTime + max(timeRange)))
+
+                # Check to see ifs there are any indices outside the requested time range.
                 significantTileIndices = significantTileIndices[keepIndices]
+
+                # Check is there are any significant tile remaining
+                if not any(significantTileIndices):
+                    continue
 
                 # number of statistically significant tiles in frequency row
                 numberOfSignificants = significantTileIndices.size
@@ -1223,12 +1228,12 @@ def threshold(transforms, tiling, startTime, falseEventRate,
 
                 # append durations of significant tiles in row
                 significants[channelstr]['duration'].append(\
-                       tiling[planestr][rowstr]['duration'] * ...
+                       tiling[planestr][rowstr]['duration'] * \
                        np.ones(numberOfSignificants))
 
                 # append bandwidths of significant tiles in row
                 significants[channelstr]['bandwidth'].append(\
-                       tiling[planestr][rowstr]['bandwidth'] * ...
+                       tiling[planestr][rowstr]['bandwidth'] * \
                        np.ones(numberOfSignificants))
         
                 # append normalized energies of significant tiles in row
@@ -1236,59 +1241,44 @@ def threshold(transforms, tiling, startTime, falseEventRate,
                        transforms[channelstr][planestr][rowstr]\
                        ['normalizedEnergies'][significantTileIndices])
 
-                # -- append amplitudes of significant tiles in row
                 if PSD is not None:
-                    # Compute the amplitude (in sqrt(Hz) units) based on the PSD floor
-                    # (harmonic average windowed by the bi-quadratic window of omega)
-
-                    # find frequencies in PSD for given tile 
-                    qPrime = tiling[planestr].q / sqrt(11)
-                    [tmp nearestIndex] = min(abs(PSD(:,1) - tiling[planestr][rowstr].frequency))
-                    inBandMask = abs(PSD(:,1) - tiling[planestr][rowstr].frequency)*...
-                    qPrime < tiling[planestr][rowstr].frequency & ...
-                    PSD(:,1) >= tiling.highPassCutoff & PSD(:,1) <= tiling.lowPassCutoff
-                    psdIndices = union(nearestIndex,find(inBandMask))
-                    # dimensionless frequency vector for window construction
-                    windowArgument = abs(PSD(psdIndices,1) - tiling[planestr][rowstr].frequency) * ...
-                    qPrime / tiling[planestr][rowstr].frequency
-                    # bi square window function
-                    window = (1 - windowArgument.^2).^2
-                    window = window/norm(window)
-                    significants[channelstr]['amplitude']= ...
-                        [significants[channelstr]['amplitude']...
-                        sqrt(2*(transforms[channelstr][planestr][rowstr] ...
-                        .normalizedEnergies(significantTileIndices) - 1) / ...
-                        dot(window.^2,1./PSD(psdIndices,2)))]
+                    #FIXME: I did not rewrite this MATLAB code because it seemed a little convulted and I am not sure will even be used in qscans.
+                    print('FIXME: I did not rewrite this MATLAB code \
+                           because it seemed a little convulted \
+                           and I am not sure will even be used in qscans.')
                 else:
-                    significants[channelstr]['amplitude']= ...
-                        [significants[channelstr]['amplitude']...
-                        np.sqrt((transforms[channelstr][planestr][rowstr] ...
-                        .normalizedEnergies(significantTileIndices) - 1) * ...
-                        transforms[channelstr][planestr][rowstr].meanEnergy)]
+                    significants[channelstr]['amplitude'].append(\
+                        np.sqrt((transforms[channelstr][planestr][rowstr]\
+                          ['normalizedEnergies'][significantTileIndices] - 1) *\
+                            transforms[channelstr][planestr][rowstr]['meanEnergy']))
 
                 ################################################################
                 #   prune excessive significants as we accumulate              #
                 ################################################################
       
                 # determine number of significant tiles in channel
-                numberOfSignificants = length(significants[channelstr]['time'])
+                numberOfSignificants = len(significants[channelstr]['time'])
 
                 # if maximum allowable number of significant tiles is exceeded
-                if numberOfSignificants > maximumSignificants,
+                if numberOfSignificants > maximumSignificants:
 
+                    #FIXME
+                    print('warning maximum allowable number of significant \
+                          tiles is exceeded and I do not know what this \
+                          means or what will happen')
                     # set overflow flag
                     significants[channelstr]['overflowFlag'] = 1
 
                     # sort significant tiles by normalized energy
-                    [ignore, maximumIndices] = ...
-                    sort(significants[channelstr]['normalizedEnergy'])
+                    maximumIndices = sort(\
+                                 significants[channelstr]['normalizedEnergy'])
 
                     # find indices of most significant tiles
-                    maximumIndices = maximumIndices(end - maximumSignificants + 1 : end)
+                    #maximumIndices = maximumIndices(end - maximumSignificants + 1 : end)
 
                     # extract most significant tile properties
-                    significants[channelstr] = ...
-                           wcopyevents(significants[channelstr], maximumIndices)
+                    #significants[channelstr] = \
+                    #       wcopyevents(significants[channelstr], maximumIndices)
 
                     # otherwise continue
 
@@ -1316,6 +1306,77 @@ def threshold(transforms, tiling, startTime, falseEventRate,
 
     return significants
 
+def wselect(significants, durationInflation, \
+                          bandwidthInflation, maximumEvents):
+    """WSELECT Identify statistically significant events in Discrete Q
+       transforms.
+
+       WSELECT selects statistically significant events from the set 
+       of statitically significant Q transform tiles.  Events are 
+       defined by the properties of their most significant tile and 
+       are identified by exluding the less significant of any overlapping 
+       tiles.  The input significant tiles are first sorted by decreasing 
+       normalized energy.  Starting with the most significant tile, tiles are 
+       discarded if they overlap with a more significant tile.  
+       The remaining set of tiles comprises a minimal set of tiles 
+       that describes an event.
+
+       WSELECT returns a cell array of significant event properties
+
+       usage: events = wselect(significants, durationInflation, \
+                         bandwidthInflation, maximumEvents)
+
+       significants         cell array of significant tiles properties
+       durationInflation    multiplicative scale factor for duration
+       bandwidthInflation   multiplicative scale factor for bandwidth
+       maximumEvents        maximum allowable number of events
+
+       events               cell array of significant event properties
+
+       The optional durationInflation and bandwidthInflation arguments are
+       multiplicative scale factors that are applied to the duration and 
+       bandwidth of significant tiles prior to testing for overlap.
+       If not specified, these parameters both default to unity such that the
+       resulting tiles have unity time-frequency area.  The normalized energy of
+       the resulting tiles are scaled by the product of the duration and 
+       bandwidth inflation factors to avoid over
+       counting the total energy of clusters of tiles.  Likewise, the
+       amplitude of the resulting tiles is scaled by the square root of the
+       product of the duration and bandwidth inflation factors.
+
+       The optional maximumEvents argument provides a safety mechanism to
+       limit the total number of events returned by WSELECT.  If this maximum 
+       number of events is exceeded, an overflow flag is set, only the 
+       maximumEvents most significant events are returned, and a warning 
+       is issued if debugLevel is set to unity or higher.  
+       By default, maximumEvents is set to infinity and debugLevel is set to
+       unity.
+
+       WSELECT both expects and returns a cell array of Q transform event
+       structures with one cell per channel.  The event structures contain 
+       the following required fields, which describe the properties of
+       statistically significant tiles.  Additional fields such as amplitude,
+       phase, or coherent transform properties are optional and are
+       retained along with the required fields.
+
+           time                 center time of tile [gps seconds]
+           frequency            center frequency of tile [Hz]
+           duration             duration of tile [seconds]
+           bandwidth            bandwidth of tile [Hz]
+           normalizedEnergy     normalized energy of tile []
+
+       The event structures also contain the following flag, which indicates
+       if the maximum number of significant tiles or significant events was
+       exceeded.
+
+           overflowFlag         boolean overflow flag
+
+       See also WTILE, WCONDITION, WTRANSFORM, WTHRESHOLD, WEXAMPLE, and WSEARCH
+
+       Shourov K. Chatterji <shourov@ligo.caltech.edu>
+       Leo C. Stein <lstein@ligo.mit.edu>
+       """
+
 ###############################################################################
 ##########################                     ################################
 ##########################      wmeasure       ################################
@@ -1332,8 +1393,8 @@ def wmeasure(transforms, tiling, startTime,
 
     usage:
 
-      measurements = wmeasure(transforms, tiling, startTime, referenceTime, ...
-                              timeRange, frequencyRange, qRange, debugLevel)
+      measurements = wmeasure(transforms, tiling, startTime, referenceTime, \
+                              timeRange, frequencyRange, qRange)
 
       transforms           cell array of input Q transform structures
       tiling               discrete Q transform tiling structure from WTILE
@@ -1342,7 +1403,6 @@ def wmeasure(transforms, tiling, startTime,
       timeRange            vector range of relative times to search over
       frequencyRange       vector range of frequencies to search over
       qRange               scalar Q or vector range of Qs to search over
-      debugLevel           verboseness of debug output
 
       measurements         cell array of measured signal properties
 
@@ -1502,7 +1562,7 @@ def wmeasure(transforms, tiling, startTime,
         # skip Q planes outside of requested Q range
         if ((tiling[planestr]['q'] < min(qRange)) or \
           (tiling[planestr]['q'] > max(qRange))):
-            break
+            continue
 
         #######################################################################
         #               begin loop over frequency rows                        #
@@ -1528,7 +1588,7 @@ def wmeasure(transforms, tiling, startTime,
                  min(frequencyRange)) or \
                 (tiling[planestr][rowstr]['frequency'] > \
                  max(frequencyRange))):
-                    break
+                    continue
 
             ###################################################################
             #             threshold on central time                           #
@@ -1819,7 +1879,7 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime,
     # index of plane in tiling structure
     planeIndex = planeIndices
     planeIndexstr = 'plane' + str(float(planeIndex))
-    #planeIndexstr  = 'plane0.0'
+
     ########################################################################
     #               identify frequency rows to display                     #
     ########################################################################
@@ -2011,6 +2071,7 @@ if __name__ == '__main__':
     searchQRange             = json.loads( cp.get('parameters','searchQRange'))
     searchMaximumEnergyLoss  = cp.getfloat('parameters','searchMaximumEnergyLoss')
     searchWindowDuration     = cp.getfloat('parameters','searchWindowDuration')
+    whiteNoiseFalseRate      = cp.getfloat('parameters','whiteNoiseFalseRate')
     plotTimeRanges           = json.loads(cp.get('parameters','plotTimeRanges'))
     plotFrequencyRange       = json.loads(cp.get('parameters','plotFrequencyRange'))
     plotNormalizedERange     = json.loads(cp.get('parameters','plotNormalizedERange'))
@@ -2027,10 +2088,17 @@ if __name__ == '__main__':
     # search parameters
     transientFactor = 2
     outlierFactor = 2.0
+    durationInflation = 1.0
+    bandwidthInflation = 1.0
 
     # display parameters
     plotHorizontalResolution = 512
+    plotDurationInflation = 0.5
+    plotBandwidthInflation = 0.5
 
+    # limits on number of significant tiles
+    maximumSignificants = 1e4
+    maximumMosaics = 1e4
 
     ###########################################################################
     #                           create output directory                       #
@@ -2159,7 +2227,6 @@ if __name__ == '__main__':
     '''what is S? ASD?'''
 
     asd = data.asd(FFTlength, FFTlength/2., method='median-mean')
-    #pdb.set_trace()
     #asd = asd *tiling['generalparams']['sampleFrequency']*data.size
     # Apply ASD to the data to whiten it
     white_data = data.whiten(FFTlength, FFTlength/2., asd=asd)
@@ -2194,22 +2261,42 @@ if __name__ == '__main__':
       wmeasure(whitenedTransform, tiling, startTime, thresholdReferenceTime, \
                thresholdTimeRange, thresholdFrequencyRange, thresholdQRange)
 
-    # Select most siginficant Q
+    # Two properties of particular interest are peakNormalizedEnergy value 
+    # and the peak Q plane.
+
+    # Select most siginficant Q plane
     mostSignificantQ = \
           whitenedProperties['channel0']['peakQ']
+    loudestEnergy = whitenedProperties['channel0']['peakNormalizedEnergy']
+
+    # Based on your white noise false alarm value determine if tiling 
+    # produced a significant event for this channel.
+    normalizedEnergyThreshold = -np.log(whiteNoiseFalseRate * \
+                                     tiling['generalparams']['duration'] / \
+                                     (1.5 * tiling["generalparams"]["numberOfIndependents"]))
+    
+    if loudestEnergy < normalizedEnergyThreshold:
+       raise ValueError('This channel does not have a significant tiling at\
+                        white noise false alarm rate provided') 
 
     # identify significant whitened q transform tiles
     thresholdReferenceTime = centerTime
+    # identify the lastPlane
+    lastPlane = tiling['generalparams']['numberOfPlanes'] -1 
+
     thresholdTimeRange = 0.5 * np.array([-1,1]) * \
                (max(plotTimeRanges) + \
-               tiling[planes{end}.['row0']['duration'] * plotDurationInflation)
+               tiling['plane' + str(lastPlane)]['row0.0']\
+               ['duration'] * plotDurationInflation)
+
     thresholdFrequencyRange = plotFrequencyRange
-    thresholdQRange = []
+    thresholdQRange = None
+
     whitenedSignificants = \
       wthreshold(whitenedTransform, tiling, startTime, whiteNoiseFalseRate, \
                thresholdReferenceTime, thresholdTimeRange, \
                thresholdFrequencyRange, thresholdQRange, \
-               maximumSignificants, [], [], [], [])
+               maximumSignificants, None, None, None, None,None)
 
     # select non-overlapping whitened significant tiles
     whitenedSignificants = wselect(whitenedSignificants, \
