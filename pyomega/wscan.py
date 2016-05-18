@@ -1391,7 +1391,7 @@ def wselect(significants, durationInflation, \
         maximumEvents = float('Inf')
 
     # determine number of channels
-    numberOfChannels = 1
+    numberOfChannels = 1 # len(significants)
 
     ############################################################################
     #        initialize statistically significant events structures            #
@@ -1403,154 +1403,156 @@ def wselect(significants, durationInflation, \
     # create empty cell array of significant event structuresi and indices
     events = {}
 
-    for iN in np.arange(len(significants)):
-        eventIndices[str(iN)] = {} 
-        events[str(iN)]       = {}
+    for channel in np.arange(0,numberOfChannels):
+        channelstr = 'channel' + str(channel)
+        eventIndices[channelstr] = {} 
+        events[channelstr]       = {}
 
     # begin loop over channels
-    for channelNumber in np.arange(numberOfChannels):
-
+    for channel in np.arange(0,numberOfChannels):
+        channelstr = 'channel' + str(channel)
         # propogate overflow flag
-        events[str(channelNumber]['overflowFlag'] = \
-            significants{channelNumber}['overflowFlag]'
+        events[channelstr]['overflowFlag'] = \
+            significants[channelstr]['overflowFlag']
 
     ############################################################################
     #                       begin loop over channels                           #
     ############################################################################
 
     # begin loop over channels
-    for channelNumber = 1 : numberOfChannels,
+    for channelNumber in np.arange(0,numberOfChannels): 
+        channelstr = 'channel' + str(channel)
 
         ######################################################################
         #           sort by decreasing normalized energy                     #
         ######################################################################
 
         # sort tile indices by normalized energy
-        [ignore, sortedIndices] = \
-            sort(significants{channelNumber}.normalizedEnergy)
+        sortedIndices = \
+            np.argsort(significants[channelstr]['normalizedEnergy'])
 
         # sort by decreasing normalized energy
-        sortedIndices = fliplr(sortedIndices)
+        sortedIndices = sortedIndices[::-1]
 
         # reorder significant tile properties by decreasing normalized energy
-        significants{channelNumber} = \
-            wcopyevents(significants{channelNumber}, sortedIndices)
+        significants[channelstr] = \
+            wcopyevents(significants[channelstr], sortedIndices)
   
         ######################################################################
         #                   find tile boundaries                             #
         ######################################################################
 
         # vector of significant tile start times
-        minimumTimes = significants{channelNumber}.time - \
+        minimumTimes = significants[channelstr]['time'] - \
             durationInflation * \
-            significants{channelNumber}.duration / 2
+            significants[channelstr]['duration'] / 2
 
         # vector of significant tile stop times
-        maximumTimes = significants{channelNumber}.time + \
+        maximumTimes = significants[channelstr]['time'] + \
             durationInflation * \
-            significants{channelNumber}.duration / 2
+            significants[channelstr]['duration'] / 2
 
         # vector of significant tile lower frequencies
-        minimumFrequencies = significants{channelNumber}.frequency - \
+        minimumFrequencies = significants[channelstr]['frequency'] - \
             bandwidthInflation * ...
-            significants{channelNumber}.bandwidth / 2
+            significants[channelstr]['bandwidth'] / 2
 
         # vector of significant tile upper frequencies
-        maximumFrequencies = significants{channelNumber}.frequency + \
+        maximumFrequencies = significants[channelstr]['frequency'] + \
             bandwidthInflation * \
-            significants{channelNumber}.bandwidth / 2
+            significants[channelstr]['bandwidth'] / 2
 
         ######################################################################
         #              compress significant tile list                        #
         ######################################################################
 
         # number of significant tiles in list
-        numberOfTiles = length(significants{channelNumber}.time)
+        numberOfTiles = length(significants[channelstr['time'])
 
         # if input significant tile list is empty,
         if numberOfTiles == 0:
 
             # set empty event list
-            events{channelNumber} = wcopyevents(significants{channelNumber}, [])
+            events[channelstr] = wcopyevents(significants[channelstr], [])
 
             # skip to next channel
             continue
 
         # initialize event list
-        eventIndices{channelNumber} = []
+        eventIndices[channelstr] = []
 
         # begin loop over significant tiles
         for tileIndex = 1 : numberOfTiles:
 
             # determine if current tile overlaps any events
             overlap = (minimumTimes(tileIndex) < \
-                maximumTimes(eventIndices{channelNumber})) & \
+                maximumTimes(eventIndices[channelstr])) & \
                     (maximumTimes(tileIndex) > \
-                minimumTimes(eventIndices{channelNumber})) & \
+                minimumTimes(eventIndices[channelstr])) & \
                     (minimumFrequencies(tileIndex) < ...
-                maximumFrequencies(eventIndices{channelNumber})) &\
+                maximumFrequencies(eventIndices[channelstr])) &\
                     (maximumFrequencies(tileIndex) > \
-                minimumFrequencies(eventIndices{channelNumber}))
+                minimumFrequencies(eventIndices[channelstr]))
 
             # if tile does not overlap with any event,
             if ~any(overlap):
                 # append it to the list of events
-                eventIndices{channelNumber} = [eventIndices{channelNumber} tileIndex]
+                eventIndices[channelstr] = [eventIndices[channelstr] tileIndex]
                 # initilaize averages over tiles in the event
-                significants{channelNumber}.av_frequency(tileIndex) = \
-                    significants{channelNumber}.frequency(tileIndex)
-                significants{channelNumber}.av_bandwidth(tileIndex) = \
-                    significants{channelNumber}.bandwidth(tileIndex)
-                significants{channelNumber}.err_frequency(tileIndex) = \
-                    significants{channelNumber}.bandwidth(tileIndex)./\
-                        significants{channelNumber}.frequency(tileIndex)
-                significants{channelNumber}.tot_normalizedEnergy(tileIndex) = \
-                    significants{channelNumber}.normalizedEnergy(tileIndex)
+                significants[channelstr]['av_frequency'](tileIndex) = \
+                    significants[channelstr]['frequency'](tileIndex)
+                significants[channelstr]['av_bandwidth'](tileIndex) = \
+                    significants[channelstr]['bandwidth'](tileIndex)
+                significants[channelstr]['err_frequency'](tileIndex) = \
+                    significants[channelstr]['bandwidth'](tileIndex)./\
+                        significants[channelstr]['frequency'](tileIndex)
+                significants[channelstr]['tot_normalizedEnergy'](tileIndex) = \
+                    significants[channelstr]['normalizedEnergy'](tileIndex)
 
             # otherwise, add to averages over tiles in the event
             else:
                 tmp_av_frequency = ...
-                    significants{channelNumber}.av_frequency(overlap).*\
-                     significants{channelNumber}.tot_normalizedEnergy(overlap) +\
-                      significants{channelNumber}.frequency(tileIndex).*\
-                       significants{channelNumber}.normalizedEnergy(tileIndex)
+                    significants[channelstr]['av_frequency'](overlap).*\
+                     significants[channelstr]['tot_normalizedEnergy'](overlap) +\
+                      significants[channelstr]['frequency'](tileIndex).*\
+                       significants[channelstr]['normalizedEnergy'](tileIndex)
                 tmp_av_bandwidth = ...
-                    significants{channelNumber}.av_bandwidth(overlap).*\
-                     significants{channelNumber}.tot_normalizedEnergy(overlap) +\
-                      significants{channelNumber}.bandwidth(tileIndex).*\
-                       significants{channelNumber}.normalizedEnergy(tileIndex)
+                    significants[channelstr]['av_bandwidth'](overlap).*\
+                     significants[channelstr]['tot_normalizedEnergy'](overlap) +\
+                      significants[channelstr]['bandwidth'](tileIndex).*\
+                       significants[channelstr]['normalizedEnergy'](tileIndex)
                 tmp_2nd_moment_frequency = \
-                    significants{channelNumber}.tot_normalizedEnergy(overlap).*\
-                     (significants{channelNumber}.err_frequency(overlap).^2 + 1).*\
-                      significants{channelNumber}.av_frequency(overlap).^2 +\
-                       significants{channelNumber}.normalizedEnergy(tileIndex).*\
-                        significants{channelNumber}.frequency(tileIndex).^2
-                significants{channelNumber}.tot_normalizedEnergy(overlap) = \
-                    significants{channelNumber}.tot_normalizedEnergy(overlap) + \
-                     significants{channelNumber}.normalizedEnergy(tileIndex)
-                significants{channelNumber}.av_frequency(overlap) = \
+                    significants[channelstr]['tot_normalizedEnergy'](overlap).*\
+                     (significants[channelstr]['err_frequency'](overlap).^2 + 1).*\
+                      significants[channelstr]['av_frequency'](overlap).^2 +\
+                       significants[channelstr]['normalizedEnergy'](tileIndex).*\
+                        significants[channelstr]['frequency'](tileIndex).^2
+                significants[channelstr]['tot_normalizedEnergy'](overlap) = \
+                    significants[channelstr]['tot_normalizedEnergy'](overlap) + \
+                     significants[channelstr]['normalizedEnergy'](tileIndex)
+                significants[channelstr]['av_frequency'](overlap) = \
                     tmp_av_frequency./ \
-                     significants{channelNumber}.tot_normalizedEnergy(overlap)
-                significants{channelNumber}.av_bandwidth(overlap) = \
+                     significants[channelstr]['tot_normalizedEnergy'](overlap)
+                significants[channelstr]['av_bandwidth'](overlap) = \
                     tmp_av_bandwidth./ \
-                     significants{channelNumber}.tot_normalizedEnergy(overlap)
-                significants{channelNumber}.err_frequency(overlap) = \
-                    sqrt( (tmp_2nd_moment_frequency - tmp_av_frequency.*significants{channelNumber}.av_frequency(overlap))./ ...
-                     significants{channelNumber}.tot_normalizedEnergy(overlap) )./...
-                      significants{channelNumber}.av_frequency(overlap)
+                     significants[channelstr]['tot_normalizedEnergy'](overlap)
+                significants[channelstr]['err_frequency'](overlap) = \
+                    sqrt( (tmp_2nd_moment_frequency - tmp_av_frequency.*significants[channelstr]['av_frequency'](overlap))./ \
+                     significants[channelstr]['tot_normalizedEnergy'](overlap) )./\
+                      significants[channelstr]['av_frequency'](overlap)
 
             # end loop over significant tiles
 
         # extract events from significant tiles
-        events{channelNumber} = ...
-        wcopyevents(significants{channelNumber}, eventIndices{channelNumber})
+        events[channelstr] = ...
+        wcopyevents(significants[channelstr], eventIndices[channelstr])
 
         ######################################################################
         #            check for excessive number of events                    #
         ######################################################################
 
         # determine number of significant tiles in channel
-        numberOfEvents = length(events{channelNumber}.time)
+        numberOfEvents = length(events[channelstr['time'])
 
         # if maximum allowable number of significant tiles is exceeded
         if numberOfEvents > maximumEvents,
@@ -1559,14 +1561,14 @@ def wselect(significants, durationInflation, \
             print('WARNING: maximum number of events exceeded.\n')
 
             # set overflow flag
-            events{channelNumber}.overflowFlag = 1
+            events[channelstr].overflowFlag = 1
 
             # indices of most significant tiles
             maximumIndices = 1 : maximumEvents
 
             # truncate lists of significant event properties
-            events{channelNumber} = ...
-            wcopyevents(events{channelNumber}, maximumIndices)
+            events[channelstr] = ...
+            wcopyevents(events[channelstr], maximumIndices)
 
             # otherwise continue
 
