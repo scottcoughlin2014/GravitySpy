@@ -1466,7 +1466,7 @@ def wselect(significants, durationInflation, \
 
         # vector of significant tile lower frequencies
         minimumFrequencies = significants[channelstr]['frequency'] - \
-            bandwidthInflation * ...
+            bandwidthInflation * \
             significants[channelstr]['bandwidth'] / 2
 
         # vector of significant tile upper frequencies
@@ -1488,82 +1488,88 @@ def wselect(significants, durationInflation, \
             events[channelstr] = wcopyevents(significants[channelstr], [])
 
             # skip to next channel
-            continue
+            break
 
         # initialize event list
         eventIndices[channelstr] = []
+        
+        # initialize some variables for the significants array.
+        significants[channelstr]['av_frequency']  = np.zeros(numberOfTiles)
+        significants[channelstr]['av_bandwidth']  = np.zeros(numberOfTiles)
+        significants[channelstr]['err_frequency'] = np.zeros(numberOfTiles)
+        significants[channelstr]['tot_normalizedEnergy'] = np.zeros(numberOfTiles)
 
         # begin loop over significant tiles
         for tileIndex in np.arange(0,numberOfTiles):
 
             # determine if current tile overlaps any events
-            overlap = (minimumTimes(tileIndex) < \
-                maximumTimes(eventIndices[channelstr])) & \
-                    (maximumTimes(tileIndex) > \
-                minimumTimes(eventIndices[channelstr])) & \
-                    (minimumFrequencies(tileIndex) < ...
-                maximumFrequencies(eventIndices[channelstr])) &\
-                    (maximumFrequencies(tileIndex) > \
+            overlap = (minimumTimes[tileIndex] < \
+                maximumTimes(eventIndices[channelstr])) and \
+                    (maximumTimes[tileIndex] > \
+                minimumTimes(eventIndices[channelstr])) and \
+                    (minimumFrequencies[tileIndex] < \
+                maximumFrequencies(eventIndices[channelstr])) and\
+                    (maximumFrequencies[tileIndex] > \
                 minimumFrequencies(eventIndices[channelstr]))
 
             # if tile does not overlap with any event,
             if not np.any(overlap):
                 # append it to the list of events
-                eventIndices[channelstr] = [eventIndices[channelstr] tileIndex]
+                eventIndices[channelstr].append(tileIndex)
 
                 # initilaize averages over tiles in the event
-                significants[channelstr]['av_frequency'](tileIndex) = \
-                    significants[channelstr]['frequency'](tileIndex)
+                significants[channelstr]['av_frequency'][tileIndex] = \
+                    significants[channelstr]['frequency'][tileIndex]
 
-                significants[channelstr]['av_bandwidth'](tileIndex) = \
-                    significants[channelstr]['bandwidth'](tileIndex)
+                significants[channelstr]['av_bandwidth'][tileIndex] = \
+                    significants[channelstr]['bandwidth'][tileIndex]
 
-                significants[channelstr]['err_frequency'](tileIndex) = \
-                    significants[channelstr]['bandwidth'](tileIndex)./\
-                        significants[channelstr]['frequency'](tileIndex)
+                significants[channelstr]['err_frequency'][tileIndex] = \
+                    significants[channelstr]['bandwidth'][tileIndex]/\
+                        significants[channelstr]['frequency'][tileIndex]
 
-                significants[channelstr]['tot_normalizedEnergy'](tileIndex) = \
-                    significants[channelstr]['normalizedEnergy'](tileIndex)
+                significants[channelstr]['tot_normalizedEnergy'][tileIndex] = \
+                    significants[channelstr]['normalizedEnergy'][tileIndex]
 
             # otherwise, add to averages over tiles in the event
             else:
                 tmp_av_frequency = \
-                  significants[channelstr]['av_frequency'](overlap)*\
-                  significants[channelstr]['tot_normalizedEnergy'](overlap) +\
-                  significants[channelstr]['frequency'](tileIndex)*\
-                  significants[channelstr]['normalizedEnergy'](tileIndex)
+                  significants[channelstr]['av_frequency'][overlap]*\
+                  significants[channelstr]['tot_normalizedEnergy'][overlap] +\
+                  significants[channelstr]['frequency'][tileIndex]*\
+                  significants[channelstr]['normalizedEnergy'][tileIndex]
 
                 tmp_av_bandwidth = \
-                  significants[channelstr]['av_bandwidth'](overlap)*\
-                  significants[channelstr]['tot_normalizedEnergy'](overlap) +\
-                  significants[channelstr]['bandwidth'](tileIndex)*\
-                  significants[channelstr]['normalizedEnergy'](tileIndex)
+                  significants[channelstr]['av_bandwidth'][overlap]*\
+                  significants[channelstr]['tot_normalizedEnergy'][overlap] +\
+                  significants[channelstr]['bandwidth'][tileIndex]*\
+                  significants[channelstr]['normalizedEnergy'][tileIndex]
 
                 tmp_2nd_moment_frequency = \
-                  significants[channelstr]['tot_normalizedEnergy'](overlap)*\
-                  (significants[channelstr]['err_frequency'](overlap)**2 + 1)*\
-                  significants[channelstr]['av_frequency'](overlap)**2 +\
-                  significants[channelstr]['normalizedEnergy'](tileIndex)*\
-                  significants[channelstr]['frequency'](tileIndex)**2
+                  significants[channelstr]['tot_normalizedEnergy'][overlap]*\
+                  (significants[channelstr]['err_frequency'][overlap]**2 + 1)*\
+                  significants[channelstr]['av_frequency'][overlap]**2 +\
+                  significants[channelstr]['normalizedEnergy'][tileIndex]*\
+                  significants[channelstr]['frequency'][tileIndex]**2
 
-                significants[channelstr]['tot_normalizedEnergy'](overlap) = \
-                  significants[channelstr]['tot_normalizedEnergy'](overlap) + \
-                  significants[channelstr]['normalizedEnergy'](tileIndex)
+                significants[channelstr]['tot_normalizedEnergy'][overlap] = \
+                  significants[channelstr]['tot_normalizedEnergy'][overlap] + \
+                  significants[channelstr]['normalizedEnergy'][tileIndex]
 
-                significants[channelstr]['av_frequency'](overlap) = \
+                significants[channelstr]['av_frequency'][overlap] = \
                   tmp_av_frequency/ \
-                  significants[channelstr]['tot_normalizedEnergy'](overlap)
+                  significants[channelstr]['tot_normalizedEnergy'][overlap]
 
-                significants[channelstr]['av_bandwidth'](overlap) = \
+                significants[channelstr]['av_bandwidth'][overlap] = \
                   tmp_av_bandwidth/ \
-                  significants[channelstr]['tot_normalizedEnergy'](overlap)
+                  significants[channelstr]['tot_normalizedEnergy'][overlap]
 
-                significants[channelstr]['err_frequency'](overlap) = \
+                significants[channelstr]['err_frequency'][overlap] = \
                   sqrt( (tmp_2nd_moment_frequency - \
                   tmp_av_frequency*significants[channelstr]\
-                                    ['av_frequency'](overlap))/ \
-                  significants[channelstr]['tot_normalizedEnergy'](overlap))/\
-                  significants[channelstr]['av_frequency'](overlap)
+                                    ['av_frequency'][overlap])/ \
+                  significants[channelstr]['tot_normalizedEnergy'][overlap])/\
+                  significants[channelstr]['av_frequency'][overlap]
 
             # end loop over significant tiles
 
