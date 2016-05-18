@@ -1545,30 +1545,30 @@ def wselect(significants, durationInflation, \
         events{channelNumber} = ...
         wcopyevents(significants{channelNumber}, eventIndices{channelNumber})
 
-    ##########################################################################
-    #                check for excessive number of events                    #
-    ##########################################################################
+        ######################################################################
+        #            check for excessive number of events                    #
+        ######################################################################
 
-    # determine number of significant tiles in channel
-    numberOfEvents = length(events{channelNumber}.time)
+        # determine number of significant tiles in channel
+        numberOfEvents = length(events{channelNumber}.time)
 
-    # if maximum allowable number of significant tiles is exceeded
-    if numberOfEvents > maximumEvents,
+        # if maximum allowable number of significant tiles is exceeded
+        if numberOfEvents > maximumEvents,
 
-        # issue warning
-        print('WARNING: maximum number of events exceeded.\n')
+            # issue warning
+            print('WARNING: maximum number of events exceeded.\n')
 
-        # set overflow flag
-        events{channelNumber}.overflowFlag = 1
+            # set overflow flag
+            events{channelNumber}.overflowFlag = 1
 
-        # indices of most significant tiles
-        maximumIndices = 1 : maximumEvents
+            # indices of most significant tiles
+            maximumIndices = 1 : maximumEvents
 
-        # truncate lists of significant event properties
-        events{channelNumber} = ...
-        wcopyevents(events{channelNumber}, maximumIndices)
+            # truncate lists of significant event properties
+            events{channelNumber} = ...
+            wcopyevents(events{channelNumber}, maximumIndices)
 
-        # otherwise continue
+            # otherwise continue
 
     ############################################################################
     #                        end loop over channels                            #
