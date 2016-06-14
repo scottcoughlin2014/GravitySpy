@@ -24,6 +24,8 @@ use('agg')
 from matplotlib import (pyplot as plt, cm)
 from matplotlib.ticker import ScalarFormatter
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
 
 from glue import datafind
 
@@ -51,6 +53,7 @@ def parse_commandline():
     parser.add_option("--plot-whitened-timeseries", action="store_true", default=False,help="Plot whitened timeseries")
     parser.add_option("--plot-highpassfiltered-timeseries", action="store_true", default=False,help="Plot high pass filtered timeseries")
     parser.add_option("--plot-raw-timeseries", action="store_true", default=False,help="Plot raw timeseries")
+    parser.add_option("--plot-eventgram", action="store_true", default=False,help="Plot eventgram")
     opts, args = parser.parse_args()
 
 
@@ -1181,7 +1184,7 @@ def wthreshold(transforms, tiling, startTime, falseEventRate,
 
                 significantTileIndices = np.argwhere(\
                     transforms[channelstr][planestr][rowstr]\
-                        ['normalizedEnergies'] <= eventThreshold)
+                        ['normalizedEnergies'] >= eventThreshold)
 
                 ################################################################
                 #          threshold on central time                           #
@@ -1213,33 +1216,39 @@ def wthreshold(transforms, tiling, startTime, falseEventRate,
                 ################################################################
 
                 # append center times of significant tiles in row
-                significants[channelstr]['time'].append(\
-                       times[significantTileIndices] + startTime)
+                significants[channelstr]['time'] = np.concatenate(\
+                       (significants[channelstr]['time'],\
+                       times[significantTileIndices] + startTime))
 
                 # append center frequencies of significant tiles in row
-                significants[channelstr]['frequency'].append(\
+                significants[channelstr]['frequency']= np.concatenate(\
+                       (significants[channelstr]['frequency'],
                        tiling[planestr][rowstr]['frequency'] * \
-                       np.ones(numberOfSignificants))
+                       np.ones(numberOfSignificants)))
 
                 # append qs of significant tiles in row
-                significants[channelstr]['q'].append(\
+                significants[channelstr]['q'] = np.concatenate(\
+                       (significants[channelstr]['q'],
                        tiling[planestr]['q'] * \
-                       np.ones(numberOfSignificants))
+                       np.ones(numberOfSignificants)))
 
                 # append durations of significant tiles in row
-                significants[channelstr]['duration'].append(\
+                significants[channelstr]['duration'] = np.concatenate(\
+                       (significants[channelstr]['duration'],
                        tiling[planestr][rowstr]['duration'] * \
-                       np.ones(numberOfSignificants))
+                       np.ones(numberOfSignificants)))
 
                 # append bandwidths of significant tiles in row
-                significants[channelstr]['bandwidth'].append(\
+                significants[channelstr]['bandwidth'] = np.concatenate(\
+                       (significants[channelstr]['bandwidth'],
                        tiling[planestr][rowstr]['bandwidth'] * \
-                       np.ones(numberOfSignificants))
+                       np.ones(numberOfSignificants)))
         
                 # append normalized energies of significant tiles in row
-                significants[channelstr]['normalizedEnergy'].append(\
+                significants[channelstr]['normalizedEnergy'] = np.concatenate(\
+                       (significants[channelstr]['normalizedEnergy'],
                        transforms[channelstr][planestr][rowstr]\
-                       ['normalizedEnergies'][significantTileIndices])
+                       ['normalizedEnergies'][significantTileIndices]))
 
                 if PSD is not None:
                     #FIXME: I did not rewrite this MATLAB code because it seemed a little convulted and I am not sure will even be used in qscans.
@@ -1247,10 +1256,11 @@ def wthreshold(transforms, tiling, startTime, falseEventRate,
                            because it seemed a little convulted \
                            and I am not sure will even be used in qscans.')
                 else:
-                    significants[channelstr]['amplitude'].append(\
-                        np.sqrt((transforms[channelstr][planestr][rowstr]\
+                    significants[channelstr]['amplitude'] = np.concatenate(\
+                        (significants[channelstr]['amplitude'],
+                          np.sqrt((transforms[channelstr][planestr][rowstr]\
                           ['normalizedEnergies'][significantTileIndices] - 1) *\
-                            transforms[channelstr][planestr][rowstr]['meanEnergy']))
+                            transforms[channelstr][planestr][rowstr]['meanEnergy'])))
 
                 ################################################################
                 #   prune excessive significants as we accumulate              #
@@ -1262,23 +1272,24 @@ def wthreshold(transforms, tiling, startTime, falseEventRate,
                 # if maximum allowable number of significant tiles is exceeded
                 if numberOfSignificants > maximumSignificants:
 
-                    #FIXME
-                    print('warning maximum allowable number of significant \
-                          tiles is exceeded and I do not know what this \
-                          means or what will happen')
                     # set overflow flag
                     significants[channelstr]['overflowFlag'] = 1
 
-                    # sort significant tiles by normalized energy
-                    maximumIndices = sort(\
+                    # find indices of max normalized energy
+                    maximumIndices = np.argsort(\
                                  significants[channelstr]['normalizedEnergy'])
 
                     # find indices of most significant tiles
-                    #maximumIndices = maximumIndices(end - maximumSignificants + 1 : end)
+                    maximumIndices = maximumIndices[::-1]
 
                     # extract most significant tile properties
-                    #significants[channelstr] = \
-                    #       wcopyevents(significants[channelstr], maximumIndices)
+                    significants[channelstr]['time'][maximumIndices]
+                    significants[channelstr]['frequency'][maximumIndices]
+                    significants[channelstr]['q'][maximumIndices]
+                    significants[channelstr]['duration'][maximumIndices]
+                    significants[channelstr]['bandwidth'][maximumIndices]
+                    significants[channelstr]['normalizedEnergy'][maximumIndices]
+                    significants[channelstr]['amplitude'][maximumIndices]
 
                     # otherwise continue
 
@@ -1396,7 +1407,6 @@ def wselect(significants, durationInflation, \
     ############################################################################
     #        initialize statistically significant events structures            #
     ############################################################################
-
     # create empty array of significant event indices
     eventIndices = {}
 
@@ -1479,7 +1489,7 @@ def wselect(significants, durationInflation, \
         ######################################################################
 
         # number of significant tiles in list
-        numberOfTiles = length(significants[channelstr]['time'])
+        numberOfTiles = len(significants[channelstr]['time'])
 
         # if input significant tile list is empty,
         if numberOfTiles == 0:
@@ -1503,14 +1513,17 @@ def wselect(significants, durationInflation, \
         for tileIndex in np.arange(0,numberOfTiles):
 
             # determine if current tile overlaps any events
-            overlap = (minimumTimes[tileIndex] < \
-                maximumTimes(eventIndices[channelstr])) and \
-                    (maximumTimes[tileIndex] > \
-                minimumTimes(eventIndices[channelstr])) and \
-                    (minimumFrequencies[tileIndex] < \
-                maximumFrequencies(eventIndices[channelstr])) and\
-                    (maximumFrequencies[tileIndex] > \
-                minimumFrequencies(eventIndices[channelstr]))
+            overlap = np.logical_and(\
+                       np.logical_and(\
+                         (minimumTimes[tileIndex] < \
+                             maximumTimes[eventIndices[channelstr]]),\
+                         (maximumTimes[tileIndex] > \
+                             minimumTimes[eventIndices[channelstr]])), \
+                       np.logical_and(\
+                         (minimumFrequencies[tileIndex] < \
+                             maximumFrequencies[eventIndices[channelstr]]),\
+                         (maximumFrequencies[tileIndex] > \
+                             minimumFrequencies[eventIndices[channelstr]])))
 
             # if tile does not overlap with any event,
             if not np.any(overlap):
@@ -1565,7 +1578,7 @@ def wselect(significants, durationInflation, \
                   significants[channelstr]['tot_normalizedEnergy'][overlap]
 
                 significants[channelstr]['err_frequency'][overlap] = \
-                  sqrt( (tmp_2nd_moment_frequency - \
+                  np.sqrt( (tmp_2nd_moment_frequency - \
                   tmp_av_frequency*significants[channelstr]\
                                     ['av_frequency'][overlap])/ \
                   significants[channelstr]['tot_normalizedEnergy'][overlap])/\
@@ -1574,8 +1587,16 @@ def wselect(significants, durationInflation, \
             # end loop over significant tiles
 
         # extract events from significant tiles
-        events[channelstr] = \
-        wcopyevents(significants[channelstr], eventIndices[channelstr])
+        events[channelstr]['time'] = significants[channelstr]['time']
+        events[channelstr]['frequency'] = significants[channelstr]['frequency']
+        events[channelstr]['q'] = significants[channelstr]['q']
+        events[channelstr]['duration'] = significants[channelstr]['duration']
+        events[channelstr]['bandwidth'] = significants[channelstr]['bandwidth']
+        events[channelstr]['normalizedEnergy'] = significants[channelstr]['normalizedEnergy']
+        events[channelstr]['av_frequency'] = significants[channelstr]['av_frequency']
+        events[channelstr]['av_bandwidth'] = significants[channelstr]['av_bandwidth']
+        events[channelstr]['err_frequency'] = significants[channelstr]['err_frequency']
+        events[channelstr]['tot_normalizedEnergy'] = significants[channelstr]['tot_normalizedEnergy']
 
         ######################################################################
         #            check for excessive number of events                    #
@@ -1597,8 +1618,16 @@ def wselect(significants, durationInflation, \
             maximumIndices = np.arange(0,maximumEvents)
 
             # truncate lists of significant event properties
-            events[channelstr] = \
-            wcopyevents(events[channelstr], maximumIndices)
+            events[channelstr]['time'] = significants[channelstr]['time'][maximumIndices]
+            events[channelstr]['frequency'] = significants[channelstr]['frequency'][maximumIndices]
+            events[channelstr]['q'] = significants[channelstr]['q'][maximumIndices]
+            events[channelstr]['duration'] = significants[channelstr]['duration'][maximumIndices]
+            events[channelstr]['bandwidth'] = significants[channelstr]['bandwidth'][maximumIndices]
+            events[channelstr]['normalizedEnergy'] = significants[channelstr]['normalizedEnergy'][maximumIndices]
+            events[channelstr]['av_frequency'] = significants[channelstr]['av_frequency'][maximumIndices]
+            events[channelstr]['av_bandwidth'] = significants[channelstr]['av_bandwidth'][maximumIndices]
+            events[channelstr]['err_frequency'] = significants[channelstr]['err_frequency'][maximumIndices]
+            events[channelstr]['tot_normalizedEnergy'] = significants[channelstr]['tot_normalizedEnergy'][maximumIndices]
 
             # otherwise continue
 
@@ -2195,14 +2224,14 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime,
             # insert into display matrix
             normalizedEnergies[timestr][row, :] = rowNormalizedEnergies
 
-############################################################################
-#                      end loop over frequency rows                        #
-############################################################################
+    ########################################################################
+    #                  end loop over frequency rows                        #
+    ########################################################################
 
 
-############################################################################
-#                      Plot spectrograms                                   #
-############################################################################
+    ########################################################################
+    #                  Plot spectrograms                                   #
+    ########################################################################
     for iN in np.arange(0,len(timeRange)):
         timestr = 'time' + str(iN)
         time = times[timestr]
@@ -2220,7 +2249,7 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime,
         mylabelfontsize = 20
 
         axSpectrogram.set_xlabel("Time (s)", fontsize=mylabelfontsize, color=myColor)
-        axSpectrogram.set_ylabel("Freq (Hz)", fontsize=mylabelfontsize, color=myColor)
+        axSpectrogram.set_ylabel("Frequency (Hz)", fontsize=mylabelfontsize, color=myColor)
         if detectorName == 'H1':
             title = "Hanford"
         elif detectorName == 'L1':
@@ -2275,7 +2304,272 @@ def wspectrogram(transforms, tiling, outputDirectory,IDstring,startTime,
 
         fig.savefig(outDir + detectorName + '_' + IDstring + '_spectrogram_' + str(dur) +'.png')
 
+def weventgram(events, tiling, startTime, referenceTime, 
+                  timeRanges, frequencyRange, durationInflation,
+                  bandwidthInflation, normalizedEnergyRange,IDstring):
 
+    """WEVENTGRAM Display statistically significant time-frequency events
+
+    WEVENTGRAM Displays filled boxes corresponding to the time-frequency boundary
+    of statistically significant events.  WEVENTGRAM takes as input a cell array
+    of event matrices, one per channel. A separate figure is produced for each
+    channel.  The resulting spectrograms are logarithmic in frequency and linear
+    in time, with the tile color denoting normalized energy of tiles or clusters.
+
+    usage:
+
+       handles = weventgram(events, tiling, startTime, referenceTime, ...
+                        timeRanges, frequencyRange, ...
+                        durationInflation, bandwidthInflation, ...
+                        normalizedEnergyRange)
+
+         events                  cell array of time-frequency event matrices
+         tiling                  q transform tiling structure
+         startTime               start time of transformed data
+         referenceTime           reference time of plot
+         timeRanges               vector range of relative times to plot
+         frequencyRange          vector range of frequencies to plot
+         durationInflation       multiplicative factor for tile durations
+         bandwidthInflation      multiplicative factor for tile bandwidths
+         normalizedEnergyRange   vector range of normalized energies for colormap
+
+         handles                 vector of axis handles for each eventgram
+
+    WEVENTGRAM expects a cell array of Q transform event structures with one cell
+    per channel.  The event structures contain the following fields, which
+    describe the properties of statistically significant tiles.
+
+       time                 center time of tile [gps seconds]
+       frequency            center frequency of tile [Hz]
+       q                    quality factor of tile []
+       normalizedEnergy     normalized energy of tile []
+       amplitude            signal amplitude of tile [Hz^-1/2]
+       phase                phase of tile [radians]
+
+    If the following optional field is present, the color of tiles in the event
+    gram correspond to total cluster normalized energy rather than single tile
+    normalized energy.
+
+       clusterNormalizedEnergy
+
+    The user can focus on a subset of the times and frequencies available in the
+    original transform data by specifying a desired time and frequency range.
+    Ranges should be specified as a two component vector, consisting of the
+    minimum and maximum value.  By default, the full time and frequency range
+    specified in the tiling is displayed.  The default values can be obtained for
+     any argument by passing the empty matrix [].
+
+    To determine the range of times to plot, WEVENTGRAM also requires a reference
+    time in addition to the specified time range.  This reference time should be
+    specified as an absolute quantity, while the range of times to plot should be
+    specified relative to the requested reference time.  The specified reference
+    time is used as the time origin in the resulting eventgrams and is also
+    reported in the title of each plot.  A reference time of zero is assumed by
+    default.
+
+    If only one channel is requested, its eventgram is plotted in the current
+    figure window.  If more than one eventgram is requested, they are plotted in
+    separate figure windows starting with figure 1.
+
+    The optional durationInflation and bandwidthInflation arguments are
+    multiplicative scale factors that are applied to the duration and bandwidth of
+    displayed events.  If not specified, these parameters both default to unity
+    such that the resulting events have unity time-frequency area.
+
+    The optional normalizedEnergyRange argument specifies the range of values to
+    encode using the colormap.  By default, the lower bound is zero and the upper
+    bound is autoscaled to the maximum normalized energy encountered in the
+    specified range of time and frequency.
+
+    The optional cell array of channel names are used to label the resulting
+    figures.
+
+    WEVENTGRAM returns a vector of axis handles to the eventgram produced for each
+    channel.
+
+    See also WTILE, WCONDITION, WTRANSFORM, WTHRESHOLD, WSELECT, WCLUSTER,
+    WSPECTROGRAM, and WEXAMPLE.
+
+    Shourov K. Chatterji <shourov@ligo.mit.edu>
+    Jameson Rollins <jrollins@phys.columbia.edu>
+
+    $Id: weventgram.m 3415 2012-06-02 17:39:47Z michal.was@LIGO.ORG $
+    """
+    # determine number of channels
+    numberOfChannels = 1
+    # begin loop over channels
+    for channel in np.arange(0,numberOfChannels):
+        channelstr = 'channel' + str(channel)
+
+        ######################################################################
+        #                 extract event properties                           #
+        ######################################################################
+
+        # bandwidth of events
+        bandwidths = 2 * np.sqrt(np.pi) * events[channelstr]['frequency'] / \
+              events[channelstr]['q']
+
+        # duration of events
+        durations = 1 / bandwidths
+
+        # apply bandwidth inflation factor
+        bandwidths = bandwidthInflation * bandwidths
+
+        # apply duration inflation factor
+        durations = durationInflation * durations
+
+        # start time of events
+        startTimes = events[channelstr]['time'] - referenceTime - durations / 2
+
+        # stop time of events
+        stopTimes = events[channelstr]['time'] - referenceTime + durations / 2
+
+        # low frequency of events
+        lowFrequencies = events[channelstr]['frequency'] - bandwidths / 2
+
+        # high frequency boundary of events
+        highFrequencies = events[channelstr]['frequency'] + bandwidths / 2
+
+        # normalized energy of events or clusters
+        #if isfield(events[channelstr]['clusterNormalizedEnergy']):
+        #    normalizedEnergies = events[channelstr]['clusterNormalizedEnergy']
+        #else:
+        #    normalizedEnergies = events[channelstr]['normalizedEnergy']
+        normalizedEnergies = events[channelstr]['normalizedEnergy']
+
+        for timeRange in timeRanges:
+            ##################################################################
+            #            identify events to display                          #
+            ##################################################################
+            times = np.array([-1,1])*timeRange/2
+            # default start time for
+            if times[0] == float('-Inf'):
+                if isempty(tiling):
+                    times[0] = np.floor(np.min(startTimes))
+                else:
+                    times[0] = startTime - referenceTime
+
+            # default stop time
+            if times[1] == float('Inf'):
+                if isempty(tiling):
+                    times[1] = np.ceil(np.max(stopTimes))
+                else:
+                    times[1] = startTime - referenceTime + \
+                                          tiling['generalparams']['duration']
+
+            # default minimum frequency
+            if frequencyRange[0] == float('-Inf'):
+                if isempty(tiling):
+                    frequencyRange[0] = 2**(np.floor(np.log2(np.min(lowFrequencies))))
+                else:
+                    frequencyRange[0] = tiling['plane0.0']['minimumFrequency']
+
+            # default maximum frequency
+            if frequencyRange[1] == float('Inf'):
+                if isempty(tiling):
+                    frequencyRange[1] = 2 ** np.ceil(np.log2(np.max(highFrequencies)))
+                else:
+                    lastPlane = tiling['generalparams']['numberOfPlanes'] -1
+                    frequencyRange[1] = tiling['plane' + str(lastPlane)]['maximumFrequency']
+
+            # find events overlapping specified time-frequency ranges
+            displayIndices = np.logical_and(\
+                     np.logical_and(
+                        (startTimes < np.max(times)),
+                        (stopTimes > np.min(times))),\
+                     np.logical_and(
+                        (lowFrequencies < np.max(frequencyRange)),
+                        (highFrequencies > np.min(frequencyRange)))\
+                    )
+
+            # number of events
+            numberOfEvents = len(displayIndices)
+
+            ##################################################################
+            #            sort by normalized energy                           #
+            ##################################################################
+
+            # sort in order of increasing normalized energy
+            sortedIndices = np.argsort(normalizedEnergies[displayIndices])
+
+            # sorted indices of events to display
+            sortedDisplayIndices = displayIndices[sortedIndices]
+
+            # sorted properties of events to display
+            startTimes = startTimes[sortedDisplayIndices]
+            stopTimes = stopTimes[sortedDisplayIndices]
+            lowFrequencies = lowFrequencies[sortedDisplayIndices]
+            highFrequencies = highFrequencies[sortedDisplayIndices]
+            normalizedEnergies = normalizedEnergies[sortedDisplayIndices]
+
+            ##################################################################
+            #             define event boundaries                            #
+            ##################################################################
+            fig, ax = plt.subplots()
+
+            # Set ticks and labels on eventgram
+            myfontsize = 15
+            myColor = 'k'
+            mylabelfontsize = 20
+
+            ax.set_xlabel("Time (s)", fontsize=mylabelfontsize, color=myColor)
+            ax.set_ylabel("Frequency (Hz)", fontsize=mylabelfontsize, color=myColor)
+            if detectorName == 'H1':
+                title = "Hanford"
+            elif detectorName == 'L1':
+                title = "Livingston"
+            else:
+                title = "VIRGO"
+            ax.set_title(title,fontsize=mylabelfontsize, color=myColor)
+
+            # Make best fit tile bounding boxes and fill them in
+            patches = []
+            colors = []
+            for iN in np.arange(0,len(startTimes)):
+
+                # time coordinates of event bounding box
+                # frequency coordinates of event bounding box
+                boundary =  np.array([[startTimes[iN],stopTimes[iN],stopTimes[iN],startTimes[iN],startTimes[iN]],[lowFrequencies[iN],lowFrequencies[iN],highFrequencies[iN],highFrequencies[iN],lowFrequencies[iN]]])
+                polygon = Polygon(boundary.T, True)
+
+                patches.append(polygon)
+                colors.append(normalizedEnergies[iN])
+
+            p = PatchCollection(patches,cmap=cm.viridis)
+            p.set_array(np.asarray(colors))
+
+            ax.add_collection(p)
+
+            # Set colormap
+            p.set_clim(plotNormalizedERange)
+            colorbarticks=range(0,30,5)
+            cbar = fig.colorbar(p,ticks=colorbarticks)
+            colorbarticklabels=["0","5","10","15","20","25"]
+            colorbarlabel = 'Normalized energy'
+            cbar.set_label(label=colorbarlabel, size=myfontsize, color=myColor)
+            cbar.ax.set_yticklabels(colorbarticklabels,
+                         verticalalignment='center', color=myColor)
+
+
+            # Set x and y axis limits on event grams (log2 scale for y)
+            xmin = min(times)
+            xmax = max(times)
+            ymin = np.min(frequencyRange)
+            ymax = np.max(frequencyRange)
+            dur = xmax-xmin
+            plt.axis([xmin,xmax,ymin,ymax])
+            xticks = np.linspace(xmin,xmax,5)
+            xticklabels = []
+            for i in xticks:
+                xticklabels.append(str(i))
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticklabels,fontsize=myfontsize)
+
+            ax.set_yscale('log', basey=2, subsy=None)
+            ax = plt.gca().yaxis
+            ax.set_major_formatter(ScalarFormatter())
+
+            fig.savefig(outDir + detectorName + '_' + IDstring + '_eventgram_' + str(dur) +'.png')
 ###############################################################################
 ##########################                     ################################
 ##########################      MAIN CODE      ################################
@@ -2513,32 +2807,8 @@ if __name__ == '__main__':
                                      (1.5 * tiling["generalparams"]["numberOfIndependents"]))
     
     if loudestEnergy < normalizedEnergyThreshold:
-       raise ValueError('This channel does not have a significant tiling at\
+        raise ValueError('This channel does not have a significant tiling at\
                         white noise false alarm rate provided') 
-
-    # identify significant whitened q transform tiles
-    thresholdReferenceTime = centerTime
-    # identify the lastPlane
-    lastPlane = tiling['generalparams']['numberOfPlanes'] -1 
-
-    thresholdTimeRange = 0.5 * np.array([-1,1]) * \
-               (max(plotTimeRanges) + \
-               tiling['plane' + str(lastPlane)]['row0.0']\
-               ['duration'] * plotDurationInflation)
-
-    thresholdFrequencyRange = plotFrequencyRange
-    thresholdQRange = None
-
-    whitenedSignificants = \
-      wthreshold(whitenedTransform, tiling, startTime, whiteNoiseFalseRate, \
-               thresholdReferenceTime, thresholdTimeRange, \
-               thresholdFrequencyRange, thresholdQRange, \
-               maximumSignificants, None, None, None, None,None)
-
-    # select non-overlapping whitened significant tiles
-    whitenedSignificants = wselect(whitenedSignificants, \
-               plotDurationInflation, plotBandwidthInflation, \
-               maximumMosaics)
 
     ############################################################################
     #                      plot whitened spectrogram                           #
@@ -2550,8 +2820,37 @@ if __name__ == '__main__':
                  mostSignificantQ, plotNormalizedERange, \
                  plotHorizontalResolution)
 
-    # Plot whitened eventgram
-    weventgram(whitenedSignificants, tiling, startTime, centerTime, \
-                 plotTimeRange * [-1 +1] / 2, plotFrequencyRange, \
+    if opts.plot_eventgram:
+        # identify significant whitened q transform tiles
+        thresholdReferenceTime = centerTime
+        # identify the lastPlane
+        lastPlane = tiling['generalparams']['numberOfPlanes'] -1 
+
+        thresholdTimeRange = 0.5 * np.array([-1,1]) * \
+               (max(plotTimeRanges) + \
+               tiling['plane' + str(lastPlane)]['row0.0']\
+               ['duration'] * plotDurationInflation)
+
+        thresholdFrequencyRange = plotFrequencyRange
+        thresholdQRange = None
+
+        whitenedSignificants = \
+          wthreshold(whitenedTransform, tiling, startTime, whiteNoiseFalseRate, \
+               thresholdReferenceTime, thresholdTimeRange, \
+               thresholdFrequencyRange, thresholdQRange, \
+               maximumSignificants, None, None, None, None,None)
+
+        # select non-overlapping whitened significant tiles
+        whitenedSignificants = wselect(whitenedSignificants, \
+               plotDurationInflation, plotBandwidthInflation, \
+               maximumMosaics)
+
+        ########################################################################
+        #                  plot whitened eventgram                             #
+        ########################################################################
+
+        # Plot whitened eventgram
+        weventgram(whitenedSignificants, tiling, startTime, centerTime, \
+                 plotTimeRanges, plotFrequencyRange, \
                  plotDurationInflation, plotBandwidthInflation, \
-                 plotNormalizedEnergyRange)
+                 plotNormalizedERange,IDstring)

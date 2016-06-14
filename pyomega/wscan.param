@@ -1,1 +1,1 @@
-python wscan.py --inifile wini.ini --eventTime 1127700030.877928972 --outDir /home/scoughlin/public_html/test3/
+python wscan.py --inifile wini.ini --eventTime 1127700030.877928972 --outDir /home/scoughlin/public_html/PyOmegaDev/
