@@ -1,4 +1,6 @@
 # GravitySpy
+## COPY OF MASTER AT TIME OF ATTEMPTING TO MERGE MASTER AND PYOMEGA
+
 This repo contains code for the GravitySpy Citizen Science project.
 
 RUN source /home/detchar/opt/gwpysoft/etc/gwpy-user-env.sh
