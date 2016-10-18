@@ -14,7 +14,7 @@ engine = create_engine('mysql://{0}:{1}@localhost/GravitySpy'.format(SQL_USER,SQ
 # Open classification table and extract most recent classificationID
 images                 = pd.read_sql('SELECT * FROM images_for_pp',engine)
 confusion_matrices     = pd.read_sql('SELECT * FROM confusion_matrices',engine)
-currentStatus          = pd.read_sql('SELECT * FROM user_status_Oct_14',engine)
+currentStatus          = pd.read_sql('SELECT * FROM user_status',engine)
 
 confusion_matrices1    = confusion_matrices.merge(currentStatus,how='left', left_on='userID', right_on='userID')
 
@@ -50,34 +50,5 @@ def move_image(x):
     return
 
 #images[images.decision == 2][['subject_set','zooID']].apply(move_image,axis=1)
-retire_sets = [6354,6355,6356,6357,6358,6359,6360,6361,6364, 6365, 6367, 6366, 6375, 6374, 6373, 6372, 6371, 6370, 6369, 6368]
-
-def retire_image(x):
-    # If has received enough labels or enough NOA form the beginner workflows that it has not been retired then we move it into the NOA Apprentice workflow for further analysis. We also remove it from whatever subject set it was in before.
-    tmp = SubjectSet.find(retire_sets[x.true_label])
-    subject = Subject.find(x.zooID)
-    # Add to new subject set
-    print(subject)
-    #tmp.add(subject)
-    # Remove it form subject set it is currently in.
-    tmp = SubjectSet.find(x.subject_set)
-    print(tmp)
-    #tmp.remove(subject)
-    return
-
-def checklen(x):
-    len(x)
-#images[images.decision == 1][['subject_set','zooID','true_label']].apply(retire_image,axis=1)
-
-#iI = 0
-#iII = range(0,len(confusion_matrices),25)
-#for iIT in range(0,len(confusion_matrices),25):
-#    if iIT == 0:
-#        confusion_matrices[['userID','promoted']][0:iII[iI+1]].to_sql(con=engine, name='user_status', if_exists='replace', flavor='mysql',index=False)
-#    elif iIT != iII[-1]:
-#        confusion_matrices[['userID','promoted']][iII[iI]+1:iII[iI+1]].to_sql(con=engine, name='user_status', if_exists='append', flavor='mysql',index=False)
-#    else:
-#        confusion_matrices[['userID','promoted']][iII[iI]+1:len(confusion_matrices)].to_sql(con=engine, name='user_status', if_exists='append', flavor='mysql',index=False)
-#    iI = iI + 1
 
 confusion_matrices[['userID','promoted']].to_sql(con=engine, name='user_status', if_exists='replace', flavor='mysql')

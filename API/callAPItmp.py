@@ -233,6 +233,7 @@ classifications.zooID            = classifications.zooID.apply(int)
 
 # Put this information into a mysql table
 try:
+    classifications.to_sql(con=engine, name='classificationstmp', if_exists='replace', flavor='mysql')
     classifications.to_sql(con=engine, name='classifications', if_exists='append', flavor='mysql')
 except:
     ValueError("Saving classifications failed!")
