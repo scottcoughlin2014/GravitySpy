@@ -81,7 +81,7 @@ gpsEnd = opts.gpsEnd
 fmin = opts.fmin
 fmax = opts.fmax
 
-engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['QUEST_SQL_USER'],os.environ['QUEST_SQL_PASSWORD']))
+engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
 tmp = pd.read_sql(database,engine)
 tmp = tmp.loc[tmp.ifo == detector]
 if not label == None:

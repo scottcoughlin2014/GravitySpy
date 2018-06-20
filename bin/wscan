@@ -9,48 +9,33 @@ import os
 import random
 import string
 import shutil
-import ConfigParser
 import argparse
 import json
 import rlcompleter
-import pdb
 import operator
+from configparser import ConfigParser
 
 from panoptes_client import *
 
 import pandas as pd
 import numpy as np
+import h5py
 
 from scipy import signal
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 from sqlalchemy.engine import create_engine
 
-from matplotlib import use
-use('agg')
-from matplotlib import (pyplot as plt, cm)
-from matplotlib.ticker import ScalarFormatter
-from matplotlib.ticker import FormatStrFormatter
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib.patches import Polygon
-from matplotlib.collections import PatchCollection
-from gwpy.plotter import rcParams
-import matplotlib as mpl
-mpl.rcParams.update(mpl.rcParamsDefault)
-
-from glue import datafind
-
 from gwpy.timeseries import TimeSeries
-from gwpy.plotter import Plot
 from gwpy.spectrogram import Spectrogram
 from gwpy.segments import Segment
 
-from pyomega import __version__
-import pyomega.ML.make_pickle_for_linux as make_pickle
-import pyomega.ML.labelling_test_glitches as label_glitches
-import pyomega.API.projectStructure as Structure
-
-pdb.Pdb.complete = rlcompleter.Completer(locals()).complete
+from gravityspy import __version__
+from gravityspy.plot.plot import plot_qtransform
+from gravityspy.API.project import GravitySpyProject
+import gravityspy.ML.make_pickle_for_linux as make_pickle
+import gravityspy.ML.labelling_test_glitches as label_glitches
+from gravityspy.utils import log
 
 ###############################################################################
 ##########################                             ########################
@@ -63,26 +48,37 @@ def parse_commandline():
     """Parse the arguments given on the command-line.
     """
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('-V', '--version', action='version', version=__version__)
-    parser.add_argument("--inifile", help="Name of ini file of params", required=True)
-    parser.add_argument("--eventTime", type=float, help="Trigger time of the glitch", required=True)
+    parser.add_argument('-V', '--version', action='version',
+                        version=__version__)
+    parser.add_argument("--inifile", help="Name of ini file of params",
+                        required=True)
+    parser.add_argument("--eventTime", type=float,
+                        help="Trigger time of the glitch", required=True)
     parser.add_argument("--uniqueID", action="store_true", default=True,
-                      help="Is this image being generated for the GravitySpy project,\
-                      if so you must assign a uniqueID string to label the images instead of \
-                      GPS time")
-    parser.add_argument("--ID", help="The uniqueID string to be supplied with --uniqueID")
+                        help="Is this image being generated for "
+                        "the GravitySpy project, if so you must assign a "
+                        "uniqueID string to label the images instead of "
+                        "GPS time")
+    parser.add_argument("--ID",
+                        help="The uniqueID string to be supplied with "
+                             "--uniqueID")
     parser.add_argument("--outDir", help="Outdir for images")
-    parser.add_argument("--NSDF", action="store_true", default=False,
-                      help="If not on LIGO custers you will want to use NSDF server")
-    parser.add_argument("--pathToModel", default='/home/machinelearning/GravitySpy/pyomega/ML/trained_model/',
-                      help="Path to folder containing trained model")
+    parser.add_argument("--pathToModel",
+                        help="Path to folder containing trained model",
+                        required=True)
+    parser.add_argument("--project-info-pickle",
+                        help="This pickle file holds information"
+                        "about what workflows a image with what"
+                        "confidence label should go into",
+                        required=True)
     parser.add_argument("--runML", action="store_true", default=False,
-                      help="Run the ML classifer on the omega scans")
-    parser.add_argument("--verbose", action="store_true", default=False, help="Run in Verbose Mode")
+                        help="Run the ML classifer on the omega scans")
+    parser.add_argument("--verbose", action="store_true", default=False,
+                        help="Run in Verbose Mode")
     parser.add_argument("--HDF5", action="store_true", default=False,
-                      help="Store triggers in local HDF5 table format")
+                        help="Store triggers in local HDF5 table format")
     parser.add_argument("--PostgreSQL", action="store_true", default=False,
-                      help="Store triggers in a remote PostgreSQL DB")
+                        help="Store triggers in a remote PostgreSQL DB")
     args = parser.parse_args()
 
 
@@ -94,36 +90,55 @@ def parse_commandline():
 ##########################                     ################################
 ###############################################################################
 
-def main(inifile,eventTime,ID,outDir,pathToModel='/home/machinelearning/GravitySpy/pyomega/ML/trained_model/',uniqueID=True,NSDF=False,runML=False,HDF5=False,PostgreSQL=False,verbose=False):
+def main(inifile, eventTime, project_info_pickle, ID, outDir,
+         pathToModel='/home/machinelearning/GravitySpy/gravityspy/ML/trained_model/',
+         uniqueID=True, runML=False, HDF5=False, PostgreSQL=False,
+         verbose=False):
 
     if (runML == True) and (HDF5==False) and (PostgreSQL==False):
-        raise ValueError('If you wish to run ML must select file format to save with. Most cases HDF5=True is what you want')
+        raise ValueError('If you wish to run ML must select file format to '
+                         'save with. Most cases HDF5=True is what you want')
+
+    if not os.path.isdir(pathToModel):
+        raise ValueError('The provided training set model path does not '
+                         'exist.')
+
+    logger = log.Logger('Gravity Spy: OmegaScan')
 
     ###########################################################################
     #                                   Parse Ini File                        #
     ###########################################################################
 
     # ---- Create configuration-file-parser object and read parameters file.
-    cp = ConfigParser.ConfigParser()
+    cp = ConfigParser()
     cp.read(inifile)
+    logger.info('You have chosen the following ini file: {0}'.format(inifile))
 
     # ---- Read needed variables from [parameters] and [channels] sections.
     alwaysPlotFlag = cp.getint('parameters', 'alwaysPlotFlag')
     sampleFrequency = cp.getint('parameters', 'sampleFrequency')
     blockTime = cp.getint('parameters', 'blockTime')
-    searchFrequencyRange = json.loads(cp.get('parameters', 'searchFrequencyRange'))
+    searchFrequencyRange = json.loads(cp.get('parameters',
+                                             'searchFrequencyRange'))
     searchQRange = json.loads(cp.get('parameters', 'searchQRange'))
-    searchMaximumEnergyLoss = cp.getfloat('parameters', 'searchMaximumEnergyLoss')
+    searchMaximumEnergyLoss = cp.getfloat('parameters',
+                                          'searchMaximumEnergyLoss')
     searchWindowDuration = cp.getfloat('parameters', 'searchWindowDuration')
     whiteNoiseFalseRate = cp.getfloat('parameters', 'whiteNoiseFalseRate')
     plotTimeRanges = json.loads(cp.get('parameters', 'plotTimeRanges'))
     plotFrequencyRange = json.loads(cp.get('parameters', 'plotFrequencyRange'))
-    plotNormalizedERange = json.loads(cp.get('parameters', 'plotNormalizedERange'))
+    plotNormalizedERange = json.loads(cp.get('parameters',
+                                             'plotNormalizedERange'))
     frameCacheFile = cp.get('channels', 'frameCacheFile')
     frameType = cp.get('channels', 'frameType')
     channelName = cp.get('channels', 'channelName')
     detectorName = channelName.split(':')[0]
     det = detectorName.split('1')[0]
+
+    logger.info('You have chosen the following Q range: '
+                '{0}'.format(searchQRange))
+    logger.info('You have chosen the following search range: '
+                '{0}'.format(searchFrequencyRange))
 
     ###########################################################################
     #                           create output directory                       #
@@ -133,16 +148,16 @@ def main(inifile,eventTime,ID,outDir,pathToModel='/home/machinelearning/GravityS
     if outDir is None:
         outDirtmp = './scans'
     else:
-        outDirtmp = outDir + '/' + ID + '/' + ID
+        outDirtmp = os.path.join(outDir, ID, ID)
     outDirtmp += '/'
 
     # report status
     if not os.path.isdir(outDirtmp):
         if verbose:
-            print 'creating event directory'
+            logger.info('creating event directory')
         os.makedirs(outDirtmp)
     if verbose:
-        print 'outputDirectory:  {0}'.format(outDirtmp)
+        logger.info('outputDirectory:  {0}'.format(outDirtmp))
 
     ########################################################################
     #     Determine if this is a normal omega scan or a Gravityspy         #
@@ -169,9 +184,11 @@ def main(inifile,eventTime,ID,outDir,pathToModel='/home/machinelearning/GravityS
     stopTime = startTime + blockTime
 
     # Read in the data
-    data = TimeSeries.get(channelName, startTime, stopTime)
+    logger.info('Fetching Data...')
+    data = TimeSeries.get(channelName, startTime, stopTime).astype('float64')
 
     # resample data
+    logger.info('Resampling Data...')
     if data.sample_rate.decompose().value != sampleFrequency:
         data = data.resample(sampleFrequency)
 
@@ -179,111 +196,100 @@ def main(inifile,eventTime,ID,outDir,pathToModel='/home/machinelearning/GravityS
     # perform the q-transform
     specsgrams = []
     for iTimeWindow in plotTimeRanges:
+        logger.info('Processing q_scan of duration: {0}'.format(iTimeWindow))
         durForPlot = iTimeWindow/2
         try:
             outseg = Segment(centerTime - durForPlot, centerTime + durForPlot)
-            qScan = data.q_transform(qrange=(4, 64), frange=(10, 2048),
+            qScan = data.q_transform(qrange=tuple(searchQRange),
+                                 frange=tuple(searchFrequencyRange),
                                  gps=centerTime, search=0.5, tres=0.002,
                                  fres=0.5, outseg=outseg, whiten=True)
-            qScan = qScan.crop(centerTime-iTimeWindow/2, centerTime+iTimeWindow/2)
+            qValue = qScan.q
+            qScan = qScan.crop(centerTime-iTimeWindow/2,
+                               centerTime+iTimeWindow/2)
         except:
-            outseg = Segment(centerTime - 2*durForPlot, centerTime + 2*durForPlot)
-            qScan = data.q_transform(qrange=(4, 64), frange=(10, 2048),
+            outseg = Segment(centerTime - 2*durForPlot,
+                             centerTime + 2*durForPlot)
+            qScan = data.q_transform(qrange=tuple(searchQRange),
+                                 frange=tuple(searchFrequencyRange),
                                  gps=centerTime, search=0.5, tres=0.002,
                                  fres=0.5, outseg=outseg, whiten=True)
-            qScan = qScan.crop(centerTime-iTimeWindow/2, centerTime+iTimeWindow/2)
+            qValue = qScan.q
+            qScan = qScan.crop(centerTime-iTimeWindow/2,
+                               centerTime+iTimeWindow/2)
         specsgrams.append(qScan)
 
-    # Set some plotting params
-    myfontsize = 15
-    mylabelfontsize = 20
-    myColor = 'k'
-    if detectorName == 'H1':
-	title = "Hanford"
-    elif detectorName == 'L1':
-	title = "Livingston"
-    else:
-	title = "VIRGO"
+    logger.info('The most significant q value is {0}'.format(qValue))
 
-    if 1161907217 < startTime < 1164499217:
-	title = title + ' - ER10'
-    elif startTime > 1164499217:
-	title = title + ' - O2a'
-    elif 1126400000 < startTime < 1137250000:
-	title = title + ' - O1'
-    else:
-	raise ValueError("Time outside science or engineering run\
-		   or more likely code not updated to reflect\
-		   new science run")
+    # Plot q_scans
+    logger.info('Plotting q scans...')
+    indFigAll, superFig = plot_qtransform(specsgrams,
+                          plotNormalizedERange, plotTimeRanges,
+                          detectorName, startTime)
 
-    for i, spec in enumerate(specsgrams):
+    for idx, indFig in enumerate(indFigAll):
+        dur = float(plotTimeRanges[idx])
+        indFig.save(os.path.join(
+                                 outDirtmp,
+                                 detectorName + '_' + IDstring
+                                 + '_spectrogram_' + str(dur) +'.png'
+                                )
+                   )
 
-        indFig = Plot(figsize=[8, 6])
-        indFig.add_spectrogram(spec)
-
-        ax = indFig.gca()
-        ax.set_position([0.125, 0.1, 0.775, 0.8])
-        ax.set_yscale('log', basey=2)
-        ax.set_xscale('linear')
-
-        xticks = np.linspace(spec.xindex.min().value,spec.xindex.max().value,5)
-        xticklabels = []
-        dur = float(plotTimeRanges[i])
-        [xticklabels.append(str(i)) for i in np.linspace(-dur/2, dur/2, 5)]
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xticklabels)
-
-        ax.set_xlabel('Time (s)', labelpad=0.1, fontsize=mylabelfontsize, color=myColor)
-        ax.set_ylabel('Frequency (Hz)', fontsize=mylabelfontsize, color=myColor)
-        ax.set_title(title, fontsize=mylabelfontsize, color=myColor)
-        ax.title.set_position([.5, 1.05])
-        ax.set_ylim(10, 2048)
-        ax.yaxis.set_major_formatter(ScalarFormatter())
-        ax.ticklabel_format(axis='y', style='plain')
-
-        plt.tick_params(axis='x', which='major', labelsize=myfontsize)
-        plt.tick_params(axis='y', which='major', labelsize=12)
-
-        cbar = indFig.add_colorbar(cmap='viridis', label='Normalized energy',
-                            clim=plotNormalizedERange, pad="3%", width="5%")
-        cbar.ax.tick_params(labelsize=12)
-        cbar.ax.yaxis.label.set_size(myfontsize)
-
-        indFig.save(outDirtmp + detectorName + '_' + IDstring + '_spectrogram_' + str(dur) +'.png')
-
-    # Create one image containing all spectogram grams
-    superFig = Plot(figsize=(27,6))
-    superFig.add_subplot(141, projection='timeseries')
-    superFig.add_subplot(142, projection='timeseries')
-    superFig.add_subplot(143, projection='timeseries')
-    superFig.add_subplot(144, projection='timeseries')
-    iN = 0
-
-    for iAx, spec in zip(superFig.axes, specsgrams):
-        iAx.plot(spec)
-
-        iAx.set_yscale('log', basey=2)
-        iAx.set_xscale('linear')
-
-        xticks = np.linspace(spec.xindex.min().value,spec.xindex.max().value,5)
-        xticklabels = []  
-        dur = float(plotTimeRanges[iN])
-        [xticklabels.append(str(i)) for i in np.linspace(-dur/2, dur/2, 5)]
-        iAx.set_xticks(xticks)
-        iAx.set_xticklabels(xticklabels)
-
-        iAx.set_xlabel('Time (s)', labelpad=0.1, fontsize=mylabelfontsize, color=myColor)
-        iAx.set_ylim(10, 2048)
-        iAx.yaxis.set_major_formatter(ScalarFormatter())
-        iAx.ticklabel_format(axis='y', style='plain')
-        iN = iN + 1
-
-        superFig.add_colorbar(ax=iAx, cmap='viridis', label='Normalized energy', clim=plotNormalizedERange, pad="3%", width="5%")
-
-    superFig.suptitle(title, fontsize=mylabelfontsize, color=myColor,x=0.51)
-    superFig.save(outDirtmp + IDstring + '.png',bbox_inches='tight')
+    superFig.save(os.path.join(outDirtmp, IDstring + '.png'),
+                  bbox_inches='tight')
 
     if runML:
+        # load the API gravityspy project cached class
+        gspyproject = GravitySpyProject.load_project_from_cache(
+                                            project_info_pickle)
+        # Since we created the images in a
+        # special temporary directory we can run os.listdir to get there full
+        # names so we can convert the images into ML readable format.
+        list_of_images = [ifile for ifile in os.listdir(outDirtmp) 
+                          if 'spectrogram' in ifile]
+
+        logger.info('Converting image to ML readable...')
+        image_dataDF = pd.DataFrame()
+        for idx, image in enumerate(list_of_images):
+            logger.info('Converting {0}'.format(image))
+            image_data = make_pickle.main(os.path.join(outDirtmp, image),
+                                          resolution=0.3)
+            image_dataDF[image] = [image_data]
+
+        image_dataDF['uniqueID'] = ID
+        #filename = outDirtmp + ID + '.h5'
+        # save ML image to H5 file
+        #image_dataDF.to_hdf(filename, ID, mode='w')
+
+        # Now label the image
+        logger.info('Labelling image...')
+        scores, MLlabel = label_glitches.label_glitches(image_data=image_dataDF,
+                                              model_adr='{0}'.format(pathToModel),
+                                              image_size=[140, 170],
+                                              verbose=verbose)
+
+        confidence = float(scores[0][MLlabel])
+
+        # Get ML semantic index image data
+        image_dataDF = pd.DataFrame()
+        for idx, image in enumerate(list_of_images):
+            if '1.0.png' in image:
+                logger.info('Converting {0} for feature space extractor'.format(image))
+                image_data = make_pickle.main(outDirtmp + image, resolution=0.3)
+                image_dataDF[image] = [image_data]
+
+        image_dataDF['uniqueID'] = ID
+
+        # Determine features
+        logger.info('Extracting Features'.format(image))
+        features = label_glitches.get_feature_space(image_data=image_dataDF,
+                                              semantic_model_adr='{0}'.format(pathToModel),
+                                              image_size=[140, 170],
+                                              verbose=verbose)
+
+        features = pd.DataFrame(features)
+        features['uniqueID'] = ID
         # Create directory called "Classified" were images that were successfully classified go.
         workFlow = 'Classified'
         finalPath = outDir + '/' + workFlow
@@ -294,46 +300,42 @@ def main(inifile,eventTime,ID,outDir,pathToModel='/home/machinelearning/GravityS
         # We must determine the columns that will be saved for this image.
         # First and foremost we want to determine the possible classes the image could be
         # get all the info about the workflows
-        workflowDictSubjectSets = Structure.main('1104','O2')
+        workflowDictSubjectSets = gspyproject.get_level_structure(IDfilter='O2')
 
         # Must determine classes from dict
-        classes = sorted(workflowDictSubjectSets[2117].keys())
+        classes = sorted(workflowDictSubjectSets['2117'].keys())
 
         # Add on columns that are Gravity Spy specific
-        classes.extend(["uniqueID","Label","workflow","subjectset","Filename1","Filename2","Filename3","Filename4","UploadFlag"])
+        classes.extend(["uniqueID", "Label", "workflow", "subjectset",
+                        "Filename1", "Filename2", "Filename3", "Filename4",
+                        "UploadFlag", "qvalue"])
 
-        # First label the image
-        lastPath = (outDirtmp).split('/')[-2]
-        make_pickle.main(outDirtmp.replace(lastPath, "", 1),
-                         outDirtmp + '/pickleddata/', 1, verbose)
-        scores, MLlabel = label_glitches.main(outDirtmp + '/pickleddata/',
-                                              '{0}'.format(pathToModel),
-                                              outDirtmp + '/labeled/',
-                                              verbose)
         # Determine label
         Label = classes[MLlabel]
+        logger.info('This image has received the following label: '
+                    '{0} with {1} percent confidence'.format(Label, confidence))
 
         # determine confidence values from ML
-        scores = scores.tolist()
-        scores = scores[1::]
-        scores = [float(iScore) for iScore in scores]
+        scores = scores[0].tolist()
         # Append uniqueID to list so when we update sql we will know which entry to update
         scores.append(ID)
         # Append label
         scores.append(Label)
 
         # Determine subject set and workflow this should go to.
-        for iWorkflow in workflowDictSubjectSets.keys(): 
+        for iWorkflow in workflowDictSubjectSets.keys():
             if Label in workflowDictSubjectSets[iWorkflow].keys():
-                 if workflowDictSubjectSets[iWorkflow][Label][2][1] <= scores[MLlabel]  <= workflowDictSubjectSets[iWorkflow][Label][2][0]:
-                     workflowNum = workflowDictSubjectSets[iWorkflow][Label][0]
+                 if workflowDictSubjectSets[iWorkflow][Label][2][1] <= \
+                        confidence <= \
+                             workflowDictSubjectSets[iWorkflow][Label][2][0]:
+                     workflowNum = int(workflowDictSubjectSets[iWorkflow][Label][0])
                      subjectSetNum = workflowDictSubjectSets[iWorkflow][Label][1]
                      break
 
-        subject1 = '{0}/{1}_{2}_spectrogram_0.5.png'.format(finalPath,detectorName,ID)
-        subject2 = '{0}/{1}_{2}_spectrogram_1.0.png'.format(finalPath,detectorName,ID)
-        subject3 = '{0}/{1}_{2}_spectrogram_2.0.png'.format(finalPath,detectorName,ID)
-        subject4 = '{0}/{1}_{2}_spectrogram_4.0.png'.format(finalPath,detectorName,ID)
+        subject1 = '{0}/{1}_{2}_spectrogram_0.5.png'.format(finalPath, detectorName, ID)
+        subject2 = '{0}/{1}_{2}_spectrogram_1.0.png'.format(finalPath, detectorName, ID)
+        subject3 = '{0}/{1}_{2}_spectrogram_2.0.png'.format(finalPath, detectorName, ID)
+        subject4 = '{0}/{1}_{2}_spectrogram_4.0.png'.format(finalPath, detectorName, ID)
 
         scores.append(workflowNum)
         scores.append(subjectSetNum)
@@ -343,13 +345,14 @@ def main(inifile,eventTime,ID,outDir,pathToModel='/home/machinelearning/GravityS
         scores.append(subject4)
         # Upload flag (defaults to 0 because image gets uploaded later)
         scores.append(0)
+        scores.append(qValue)
 
         scoresTable = pd.DataFrame([scores],columns=classes)
 
         if PostgreSQL:
             engine = create_engine(
                                    'postgresql://{0}:{1}'\
-                                   .format(os.environ['QUEST_SQL_USER'],os.environ['QUEST_SQL_PASSWORD'])\
+                                   .format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD'])\
                                    + '@gravityspy.ciera.northwestern.edu:5432/gravityspy')
             columnDict = scoresTable.to_dict(orient='records')[0]
             SQLCommand = 'UPDATE glitches SET '
@@ -360,13 +363,17 @@ def main(inifile,eventTime,ID,outDir,pathToModel='/home/machinelearning/GravityS
                     SQLCommand = SQLCommand + '''\"{0}\" = {1}, '''.format(Column,columnDict[Column])
             SQLCommand = SQLCommand[:-2] + ' WHERE \"uniqueID\" = \'' + scoresTable.uniqueID.iloc[0] + "'"
             engine.execute(SQLCommand)
+            features.to_sql('similarityindex', engine, index=False, if_exists='append')
         elif HDF5:
-            scoresTable.to_hdf('{0}/ML_GSpy_{1}.h5'.format(outDir,ID),'gspy_ML_classification')
+            scoresTable.to_hdf('{0}/ML_GSpy_{1}.h5'.format(outDir, ID), table=True, key='gspy_ML_classification')
+            features.to_hdf('{0}/ML_GSpy_{1}.h5'.format(outDir, ID), table=True, key='featurespace')
 
-        system_call = "mv {0}*.png {1}".format(outDirtmp,finalPath)
+        system_call = "mv {0}*.png {1}".format(outDirtmp, finalPath)
         os.system(system_call)
-        shutil.rmtree(outDirtmp.replace(lastPath, "", 1))
+        shutil.rmtree(os.path.join(outDir, ID))
 
 if __name__ == '__main__':
     args = parse_commandline()
-    main(args.inifile,args.eventTime,args.ID,args.outDir,args.pathToModel,args.uniqueID,args.NSDF,args.runML,args.HDF5,args.PostgreSQL,args.verbose)
+    main(args.inifile, args.eventTime, args.project_info_pickle,
+         args.ID, args.outDir, args.pathToModel,
+         args.uniqueID, args.runML, args.HDF5, args.PostgreSQL, args.verbose)

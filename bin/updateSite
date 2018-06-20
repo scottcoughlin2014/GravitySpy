@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+
+from panoptes_client import *
+from gwpy.table import EventTable
+
+retired = EventTable.fetch('gravityspy', 'glitches', selection='"ImageStatus" = "Retired"')
+
+retiredDF =  retired.to_pandas()
+
+subjectsList = []
+
+for isubject in retiredDF['links_subjects'].unique():
+    subjectsList.append(Subject.find(isubject))
+
+for workflow_id in ['1610','1934','1935', '2360', '2117']:
+    Workflow.find(workflow_id).retire_subjects(subjectsList)

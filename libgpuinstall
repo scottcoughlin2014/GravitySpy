@@ -1,0 +1,46 @@
+#!/bin/bash -e
+
+export PATH=$PATH:/usr/local/cuda-9.0/bin/
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/
+
+. ~/opt/GravitySpy-py27/bin/activate
+pip install cython
+
+git clone https://github.com/Theano/libgpuarray.git
+cd libgpuarray
+rm -rf build Build
+mkdir Build
+cd Build
+cmake3 .. -DCMAKE_INSTALL_PREFIX=~/opt/GravitySpy-py27 -DCMAKE_BUILD_TYPE=Release
+make
+make install
+
+cd ..
+
+# Run the following export and add them in your ~/.bashrc file
+export CPATH=$CPATH:~/opt/GravitySpy-py27/include
+export LIBRARY_PATH=$LIBRARY_PATH:~/opt/GravitySpy-py27/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/opt/GravitySpy-py27/lib
+
+python setup.py build
+python setup.py install --prefix=~/opt/GravitySpy-py27/
+
+####################### py36 ##################################
+. ~/opt/GravitySpy-py36/bin/activate
+pip install cython
+rm -rf build Build
+mkdir Build
+cd Build
+cmake3 .. -DCMAKE_INSTALL_PREFIX=~/opt/GravitySpy-py36 -DCMAKE_BUILD_TYPE=Release
+make
+make install
+
+cd ..
+
+# Run the following export and add them in your ~/.bashrc file
+export CPATH=$CPATH:~/opt/GravitySpy-py36/include
+export LIBRARY_PATH=$LIBRARY_PATH:~/opt/GravitySpy-py36/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/opt/GravitySpy-py36/lib
+
+python setup.py build
+python setup.py install --prefix=~/opt/GravitySpy-py36/

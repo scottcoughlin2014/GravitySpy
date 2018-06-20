@@ -1,45 +1,22 @@
 #!/bin/bash -e
-#
-# Set up a new python2.7 virtualenv for the GWpy software stack
 
-# get name
-target=$1
-[[ -z ${target} ]] && target=${HOME}/opt/gwpysoft
-packagefile=$2
 
-# -- install dependencies for virtualenv itself
-# get python2.7 version
-if [[ -z ${PYTHON_VERSION} ]]; then
-    PYTHON_VERSION=`python2.7 -c '
-import sys;
-print(".".join(map(str, sys.version_info[:2])))'`
-fi
-if [[ -z ${PYTHON_USER_BASE} ]]; then
-    PYTHON_USER_BASE=`python2.7 -c 'import site; print(site.USER_BASE)'`
-    PYTHON_USER_BASE=${HOME}/python
-fi
-if [[ -z ${PYTHON_USER_SITE} ]]; then
-    PYTHON_USER_SITE=`python2.7 -c 'import site; print(site.USER_SITE)'`
-    PYTHON_USER_SITE=${HOME}/python/lib/python2.7/site-packages
-fi
-# create local directories
-mkdir -p ${PYTHON_USER_SITE} 1>/dev/null
+####
+rm -rf ~/opt/GravitySpy-py27
+virtualenv-2.7 ~/opt/GravitySpy-py27
+. ~/opt/GravitySpy-py27/bin/activate
+python -m pip install --upgrade --quiet pip setuptools
+pip install .
 
-echo ${PYTHON_USER_BASE}
-echo ${PYTHON_USER_SITE}
+rm -rf ~/opt/GravitySpy-py34
+virtualenv-3.4 ~/opt/GravitySpy-py34
+. ~/opt/GravitySpy-py34/bin/activate
+python -m pip install --upgrade --quiet pip
+pip install .
 
-# install pip
-which pip &>/dev/null || easy_install -U --prefix=${PYTHON_USER_BASE} pip
-export PATH=${PATH}:${PYTHON_USER_BASE}/bin
-
-# install virtualenv
-pip install "virtualenv"  --prefix=${PYTHON_USER_BASE}
-echo "Virtualenv is now installed"
-
-# -- create virtualenv
-virtualenv $target --system-site-packages --clear
-. $target/bin/activate
-
-# Upgrading pip
-pip install pip --upgrade
-pip install -r $packagefile
+rm -rf ~/opt/GravitySpy-py36
+source /opt/rh/rh-python36/enable
+virtualenv ~/opt/GravitySpy-py36
+. ~/opt/GravitySpy-py36/bin/activate
+python -m pip install --upgrade --quiet pip
+pip install .

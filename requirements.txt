@@ -1,23 +1,15 @@
-panoptes-client
-SQLAlchemy
-cython
-six >= 1.5
-numpy >= 1.10
-scipy >= 0.16
-astropy >= 1.2.1
-matplotlib>=1.4.1
-lscsoft-glue>=1.55.2
-gitpython
+gwpy>=0.10
+configparser
+panoptes_client
+pandas; python_version >= '3.5'
+pandas<0.21; python_version == '3.4'
+pandas; python_version == '2.7'
 h5py
-jinja2
-M2Crypto
-pykerberos
-python-cjson
-pyRXP
-scikit-image
-Theano
-keras
-pandas
-gwpy
-psycopg2
-https://github.com/ligovirgo/trigfind/archive/v0.4.tar.gz
+psycopg2-binary
+SQLAlchemy
+scikit_image
+keras==2.1.6
+Theano==1.0.1
+tensorflow-gpu==1.7.0
+tables
+enum34

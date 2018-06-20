@@ -1,68 +1,33 @@
 language: python
 
-addons:
-  apt:
-    sources:
-    - sourceline: deb http://software.ligo.org/lscsoft/debian wheezy contrib
-      key_url: http://software.ligo.org/keys/deb/lscsoft.key
-    - sourceline: deb-src http://software.ligo.org/lscsoft/debian wheezy contrib
-      key_url: http://software.ligo.org/keys/deb/lscsoft.key
-    packages:
-    - gfortran
-    - libblas-dev
-    - liblapack-dev
-    - swig
-    - pkg-config
-    - zlib1g-dev
-    - libgsl0-dev
-    - swig
-    - bc
-    - libfftw3-dev
-
 python:
-- '2.7'
-- '3.5'
-
-env:
-  global:
-  - LAL_VERSION="6.18.0"
-  - KERAS_BACKEND=theano
-  matrix:
-  - PIP_FLAGS="--quiet"
-  - PIP_FLAGS="--quiet --pre"
-
-matrix:
-  allow_failures:
-  - python: '3.5'
-  fast_finish: true
+  - '2.7'
+  - '3.4'
+  - '3.5'
+  - '3.6'
 
 before_install:
-- pip install -q --upgrade pip
-- pip install ${PRE} -r requirements.txt
-- .travis/build-lal.sh
+  - pip install pip setuptools --upgrade
 
 install:
-- pip install --editable . 
+  - python -m pip install .
 
 before_script:
-- pip list installed
+  - python -m pip install coveralls "pytest>=3.1" pytest-runner sphinx numpydoc sphinx-bootstrap-theme sphinxcontrib-programoutput sphinx_rtd_theme
 
 script:
-- pip install ${PRE} unittest2 coveralls "pytest>=2.8"
-- python -c "import keras.backend"
-  # set up keras backend
-- sed -i -e 's/"backend":[[:space:]]*"[^"]*/"backend":\ "'$KERAS_BACKEND'/g' ~/.keras/keras.json;
-- echo -e "Running tests with the following config:\n$(cat ~/.keras/keras.json)"
-- . .travis/run-tests.sh
+  # run unit tests
+  - coverage run ./setup.py test
+  - coverage run --append `which wscan` --help
+
+  # build documentation
+  - cd docs && make html; cd ../
 
 after_success:
 - coveralls
 
 cache:
-  apt: true
   pip: true
-  directories:
-  - lal-${LAL_VERSION}
 
 notifications:
   slack:

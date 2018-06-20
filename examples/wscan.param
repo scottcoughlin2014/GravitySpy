@@ -1,2 +1,1 @@
-wscan --inifile ..//Production/wini.ini --eventTime 1127700030.877928972 --outDir $HOME/public_html/GravitySpy/Test/ --uniqueID --ID 123abc1234 --HDF5 --runML
-python -c "import pandas as pd; print(pd.read_hdf('$HOME/public_html/GravitySpy/Test/ML_GSpy_123abc1234.h5').Scratchy)"
+wscan --inifile ..//Production/wini.ini --project-info-pickle 1104.pkl --eventTime 1127700030.877928972 --outDir ./public_html/GravitySpy/Test/ --uniqueID --ID 123abc1234 --HDF5 --runML --pathToModel ../bin

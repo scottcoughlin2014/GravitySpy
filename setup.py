@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (C) Duncan Macleod (2013)
+# Copyright (C) Scott Coughlin (2018)
 #
-# This file is part of the hveto python package.
+# This file is part of the gravityspy python package.
 #
-# hveto is free software: you can redistribute it and/or modify
+# gravityspy is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# hveto is distributed in the hope that it will be useful,
+# gravityspy is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with hveto.  If not, see <http://www.gnu.org/licenses/>.
+# along with gravityspy.  If not, see <http://www.gnu.org/licenses/>.
 
 """Setup the GravitySpy package
 """
@@ -32,8 +32,8 @@ import os.path
 from setuptools import (setup, find_packages)
 
 # set basic metadata
-PACKAGENAME = 'pyomega'
-DISTNAME = 'pyomega'
+PACKAGENAME = 'gravityspy'
+DISTNAME = 'gravityspy'
 AUTHOR = 'Scott Coughlin'
 AUTHOR_EMAIL = 'scott.coughlin@ligo.org'
 LICENSE = 'GPLv3'
@@ -62,50 +62,49 @@ setup_requires = [
     'setuptools',
     'pytest-runner',
 ]
-install_requires = []
-requires = [
-    'SQLAlchemy',
-    'cython',
-    'six',
-    'numpy',
-    'scipy',
-    'astropy',
-    'matplotlib',
-    'gitpython',
-    'h5py',
-    'jinja2',
-    'M2Crypto',
-    'pykerberos',
-    'python_cjson',
-    'pyRXP',
-    'scikit_image',
-    'Theano',
-    'keras',
-    'pandas',
-    'gwpy',
-    'lscsoft_glue',
-    'psycopg2',
+
+install_requires = [
+    'gwpy>=0.10.1',
+    'configparser',
     'panoptes_client',
+    'pandas>=0.22;python_version>="3.5"',
+    'pandas<0.21;python_version=="3.4"',
+    'pandas>=0.22;python_version=="2.7"',
+    'h5py',
+    'psycopg2-binary',
+    'SQLAlchemy',
+    'scikit_image',
+    'keras==2.1.6',
+    'Theano==1.0.1',
+    'tensorflow-gpu',
+    'tables',
 ]
+
 tests_require = [
     'pytest'
 ]
-if sys.version_info < (2, 7):
-    tests_require.append('unittest2')
+
 extras_require = {
     'doc': [
         'sphinx',
         'numpydoc',
         'sphinx_rtd_theme',
         'sphinxcontrib_programoutput',
-        'sphinxcontrib_epydoc',
     ],
 }
+
+# enum34 required for python < 3.4
+try:
+    import enum  # pylint: disable=unused-import
+except ImportError:
+    install_requires.append('enum34')
 
 # -- run setup ----------------------------------------------------------------
 
 packagenames = find_packages()
-scripts = glob.glob(os.path.join('bin', '*'))
+data_extensions = ('.h5', '.pklz')
+scripts = [fn for fn in glob.glob(os.path.join('bin', '*')) if
+           not fn.endswith(data_extensions)]
 
 setup(name=DISTNAME,
       provides=[PACKAGENAME],
@@ -121,15 +120,9 @@ setup(name=DISTNAME,
       scripts=scripts,
       setup_requires=setup_requires,
       install_requires=install_requires,
-      requires=requires,
       tests_require=tests_require,
       extras_require=extras_require,
-      dependency_links=[
-          'http://software.ligo.org/lscsoft/source/glue-1.49.1.tar.gz',
-          'http://software.ligo.org/lscsoft/source/dqsegdb-1.2.2.tar.gz',
-          'https://github.com/ligovirgo/trigfind/archive/v0.4.tar.gz',
-      ],
-      test_suite='pyomega.tests',
+      test_suite='gravityspy.tests',
       use_2to3=True,
       classifiers=[
           'Programming Language :: Python',

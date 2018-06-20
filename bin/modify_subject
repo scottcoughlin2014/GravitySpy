@@ -12,8 +12,8 @@ import pdb
 from sqlalchemy.engine import create_engine
 import time
 
-from pyomega.API import getGoldenImages
-from pyomega.API.getLabelDict import getAnswers
+from gravityspy.API import getGoldenImages
+from gravityspy.API.getLabelDict import getAnswers
 
 def parse_commandline():
     """
@@ -50,10 +50,10 @@ except:
 database = opts.database
 
 try:
-    engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['QUEST_SQL_USER'],os.environ['QUEST_SQL_PASSWORD']))
+    engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
     print 'Looking in on server gravityspy.ciera.northwestern.edu and in DB {0}'.format(database)
 except:
-    ValueError('Remember to set export QUEST_SQL_USER and export QUEST_SQL_PASSWORD in order to access the Gravity Spy Data')
+    ValueError('Remember to set export GRAVITYSPY_DATABASE_USER and export GRAVITYSPY_DATABASE_PASSWD in order to access the Gravity Spy Data')
 
 
 GoldenImage = False

@@ -5,9 +5,8 @@ The gravityspy project contains three components. The code to produce the images
 
 # Installing Gravity Spy on LIGO Data Grid (LDG) Clusters
 ## Create virtualEnv
-* export KERAS_BACKEND=theano
 * ./GravitySpy-init $ENVDIR requirements.txt
-* pip install git+https://github.com/scottcoughlin2014/GravitySpy.git
+* pip install git+https://github.com/Gravity-Spy/GravitySpy.git
 
 ## Running Example
 * . $ENVDIR/bin/activate

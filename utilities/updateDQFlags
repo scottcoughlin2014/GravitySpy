@@ -6,14 +6,14 @@ from sqlalchemy.engine import create_engine
 from panoptes_client import *
 from gwpy.segments import DataQualityDict, SegmentList, Segment
 
-engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['QUEST_SQL_USER'],os.environ['QUEST_SQL_PASSWORD']))
+engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
 
 # Load classifications, current user DB status and golden images from DB
 glitches = pd.read_sql('glitches', engine)
 
 commandStart = "curl -O -s -L -b /tmp/ecpcookie.u`id -u` "
 baseURL = 'https://git.ligo.org/detchar/veto-definitions/raw/'
-gitHash = '8be194f5d083f99f9c2e5875da38a32f28cba01e'
+gitHash = 'a710fd24e2de786864f33b6b4bc4d8b0d189f6fd'
 searchType = 'burst'
 xmlFileBase = 'H1L1-HOFT_C00'
 
@@ -55,7 +55,7 @@ for era in searchEras:
 
 glitches.drop('segments', axis=1, inplace=True)
 glitchOrig = pd.read_sql('glitches', engine)
-mask = (glitchOrig != glitches).any(1)
+mask = (glitchOrig.DQFlag != glitches.DQFlag)
 glitches = glitches.loc[mask]
 
 # We will now updates these rows on gSpySearch

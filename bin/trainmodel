@@ -1,37 +1,94 @@
 #!/usr/bin/env python
 
-import ConfigParser
-import optparse
+import argparse
+import os
 
 from matplotlib import use
 use('agg')
-from matplotlib import (pyplot as plt, cm)
 
-import pyomega.ML.make_pickle_for_linux as make_pickle
-import pyomega.ML.train_classifier as train_classifier
+import gravityspy.ML.train_classifier as train_classifier
 
 # Definite Command line arguments here
 
 def parse_commandline():
     """Parse the options given on the command-line.
     """
-    parser = optparse.OptionParser()
-    parser.add_option("--path-to-golden", help="folder where labeled images live")
-    parser.add_option("--path-to-pickle", help="folder where pickled files will live")
-    parser.add_option("--path-to-trained-model", help="folder where the training model will live.")
-    parser.add_option("--batch-size", type=int, default=30,help="defines the batch size, 30 is a reasonable size")
-    parser.add_option("--nb-epoch", type=int, default=130,help="defines the number of iterations, 130 is reasonable. You can set it to 100 or below, if you have time concern for training.")
-    parser.add_option("--train-flag", type=int, default=0,help="a flag that shows all the golden set should be used for training the ML classifier, if 1, use training, validation and test set from golden set (ML experiments)")
-    parser.add_option("--number-of-classes", type=int, help="")
-    parser.add_option("--verbose", action="store_true", default=False,help="Run in Verbose Mode")
-    opts, args = parser.parse_args()
+    parser = argparse.ArgumentParser(description=
+       "An examples commandline of how to obtain a model is given below: "
+       "THEANO_FLAGS=mode=FAST_RUN,device=cuda,floatX=float32 trainmodel "
+       "--path-to-trainingset='somedir' --number-of-classes='somenum'")
+    parser.add_argument("--path-to-trainingset",
+                        help="folder where labeled images live", default=None)
+    parser.add_argument("--number-of-classes", type=int,
+                        help="How many classes do you have", required=True)
+    parser.add_argument("--trainingset-pickle-file",
+                        help="folder where the entire pickled training set "
+                             "will live. This pickle file should be read in "
+                             "by pandas",
+                              default=os.path.join('pickeleddata',
+                                                   'trainingset.pkl')
+                       )
+    parser.add_argument("--path-to-trained-model",
+                        help="folder where the final trained model will go.",
+                        default='model')
+    parser.add_argument("--batch-size", type=int, default=30,
+                        help="defines the batch size, 30 is a reasonable size")
+    parser.add_argument("--nb-epoch", type=int, default=20,
+                        help="defines the number of iterations, "
+                        "130 is reasonable. You can set it to 100 or below, "
+                        "if you have time concern for training.")
+    parser.add_argument("--fraction-validation", type=float, default=0.125,
+                        help="Perentage of trianing set to save for validation")
+    parser.add_argument("--fraction-testing", type=float, default=0,
+                        help="Percentage of training set to save for testing")
+    parser.add_argument("--randomseed", type=int, default=1986,
+                        help="Set random seed")
+    parser.add_argument("--verbose", action="store_true", default=False,
+                        help="Run in Verbose Mode")
+    args = parser.parse_args()
 
+    if (not args.path_to_trainingset) and (
+        not os.path.isfile(args.trainingset_pickle_file)
+        ):
+        raise parser.error('If you are not providing a path to the '
+                           'trainingset you must specify '
+                           'a pickle file containing the already '
+                           'pixelized training set')
 
-    return opts
+    if args.path_to_trainingset:
+        if not os.path.isdir(args.path_to_trainingset):
+            raise parser.error('Training Set path does not exist.')
 
-# example script
+    return args
 
-#THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 trainmodel --path-to-golden /home/scoughlin/public_html/GravitySpy/TrainingSet2/H1L1/ --path-to-pickle ./pickleddata/ --path-to-trained-model ./model --number-of-classes 22 --batch-size 500
-opts = parse_commandline()
-make_pickle.main(opts.path_to_golden,opts.path_to_pickle,0,opts.verbose)
-train_classifier.main(opts.batch_size,opts.nb_epoch,opts.train_flag,opts.path_to_pickle,opts.path_to_trained_model,opts.number_of_classes,opts.verbose)
+# Parse commandline
+args = parse_commandline()
+
+# Pixelate and pickle the traiing set images
+if args.path_to_trainingset:
+    train_classifier.pickle_trainingset(
+        path_to_trainingset=args.path_to_trainingset,
+        save_address=args.trainingset_pickle_file,
+        verbose=args.verbose
+        )
+
+# Check if teting percentage is 0, set to None
+if not args.fraction_testing:
+    fraction_testing = None
+else:
+    fraction_testing = args.fraction_testing
+
+# Train model
+train_classifier.make_model(
+    data=args.trainingset_pickle_file,
+    model_folder=args.path_to_trained_model,
+    batch_size=args.batch_size,
+    nb_epoch=args.nb_epoch,
+    nb_classes=args.number_of_classes,
+    fraction_validation=args.fraction_validation,
+    fraction_testing=fraction_testing,
+    best_model_based_validset=0,
+    image_size=[140, 170],
+    random_seed=args.randomseed,
+    verbose=True
+    )

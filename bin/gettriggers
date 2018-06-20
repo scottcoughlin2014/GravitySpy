@@ -8,6 +8,8 @@ from decimal import Decimal
 import pandas as pd
 import numpy as np
 from sqlalchemy.engine import create_engine
+from configparser import ConfigParser
+from gravityspy.utils import log
 
 ###############################################################################
 ##########################                             ########################
@@ -21,25 +23,61 @@ def parse_commandline():
     Parse the options given on the command-line.
     """
     parser = optparse.OptionParser()
-    parser.add_option("--applyallDQ", action="store_true", default=False,help="Generate a list of omicron triggers that exclude all of the DQ cuts already created by detchar. (Default:False)")
-    parser.add_option("--channelname", help="channel name [Default:GDS-CALIB_STRAIN]",
-                        default="GDS-CALIB_STRAIN")
-    parser.add_option("--detector", help="detector name [L1 or H1]. [No Default must supply]")
-    parser.add_option("--durHigh", help="The max duration of a glitch you want to make images for [Optional Input]",type=float)
-    parser.add_option("--durLow", help="lower duration of a glitch you want to make images for[Optional Input]",type=float)
-    parser.add_option("--gpsStart", type=int,help="gps Start Time of Query for meta data and omega scans. If not supplied will attempt to imply from datatable",default=0)
-    parser.add_option("--gpsEnd", type=int,help="gps End Time If not supplied will attempt to imply from datatable",default=0)
-    parser.add_option("--freqHigh", help="upper frequency bound cut off for the glitches. [Default: 2048]",type=int,default=2048)
-    parser.add_option("--freqLow", help="lower frequency bound cut off for the glitches. [Default: 10]",type=int,default=10)
-    parser.add_option("--maxSNR", help="This flag gives you the option to supply a upper limit to the SNR of the glitches [Optional Input]",type=float)
-    parser.add_option("--outDir", help="Outdir of omega scan and omega scan webpage (i.e. your html directory)")
-    parser.add_option("--pathToIni", help="Path to ini file")
-    parser.add_option("--pathToModel",default='./ML/trained_model/' ,help="Path to trained model")
-    parser.add_option("--SNR", help="Lower bound SNR Threshold for omicron triggers, by default there is no upperbound SNR unless supplied throught the --maxSNR flag. [Default: 6]",type=float,default=6)
-    parser.add_option("--uniqueID", action="store_true", default=False,help="Is this image being generated for the GravitySpy project, is so we will create a uniqueID strong to use for labeling images instead of GPS time")
-    parser.add_option("--HDF5", action="store_true", default=False,help="Store triggers in local HDF5 table format")
-    parser.add_option("--PostgreSQL", action="store_true", default=False,help="Store triggers in local PostgreSQL format")
-    parser.add_option("--upload", action="store_true", default=False,help="You plan on uploading to the gravityspywebsite")
+    parser.add_option("--detector", help="detector name [L1 or H1]. "
+                      "[No Default must supply]")
+    parser.add_option("--durHigh", help="The max duration of a glitch "
+                                        "you want to make images for "
+                                        "[Optional Input]",
+                                   type=float)
+    parser.add_option("--durLow", help="lower duration of a glitch "
+                                       "you want to make images for "
+                                       "[Optional Input]",
+                                  type=float)
+    parser.add_option("--gpsStart", type=int,
+                                    help="gps Start Time of Query for "
+                                         "meta data and omega scans. "
+                                         "If not supplied will attempt "
+                                         "to imply from datatable",
+                                    default = 0)
+    parser.add_option("--gpsEnd", type=int,
+                                  help="gps End Time If not supplied will "
+                                       "attempt to imply from datatable",
+                                  default=0)
+    parser.add_option("--freqHigh", help="upper frequency bound cut off "
+                                         "for the glitches. [Default: 2048]",
+                                    type=int, default=2048)
+    parser.add_option("--freqLow", help="lower frequency bound cut off "
+                                        "for the glitches. [Default: 10]",
+                                   type=int, default=10)
+    parser.add_option("--maxSNR", help="This flag gives you the option to "
+                                       "supply a upper limit to the SNR of "
+                                       "the glitches [Optional Input]",
+                                   type=float)
+    parser.add_option("--outDir", help="Outdir of omega scan and omega scan "
+                                       "webpage (i.e. your html directory)")
+    parser.add_option("--inifile", help="Path to ini file")
+    parser.add_option("--pathToModel", default='./ML/trained_model/',
+                                       help="Path to trained model")
+    parser.add_option("--SNR", help="Lower bound SNR Threshold for omicron "
+                                    "triggers, by default there is no "
+                                    "upperbound SNR unless supplied throught "
+                                    "the --maxSNR flag. [Default: 6]",
+                               type=float, default=6)
+    parser.add_option("--uniqueID", action="store_true", default=False,
+                                    help="Is this image being generated "
+                                         "for the GravitySpy project, is so "
+                                         "we will create a uniqueID strong to "
+                                         "use for labeling images instead of "
+                                         "GPS time")
+    parser.add_option("--HDF5", action="store_true", default=False,
+                                help="Store triggers in local HDF5 table "
+                                      "format")
+    parser.add_option("--PostgreSQL", action="store_true", default=False,
+                                      help="Store triggers in local "
+                                           "PostgreSQL format")
+    parser.add_option("--upload", action="store_true", default=False,
+                                  help="You plan on uploading to the "
+                                       "gravityspy website.")
 
     opts, args = parser.parse_args()
 
@@ -62,16 +100,18 @@ def id_generator(x,size=10, chars=string.ascii_uppercase + string.digits +string
 
 # This function queries omicron to obtain trigger times of the glitches. It then proceeds to filter out these times based on whether the detector was in an analysis ready state or the glitch passes certain frequency and SNR cuts. 
 
-def get_triggers(gpsStart,gpsEnd,detector):
+def get_triggers(gpsStart, gpsEnd, detector, dqflag):
 
     # Obtain segments that are analysis ready
-    analysis_ready = DataQualityFlag.query('{0}:DMT-ANALYSIS_READY:1'.format(detector),float(gpsStart),float(gpsEnd))
+    analysis_ready = DataQualityFlag.query('{0}:{1}'.format(detector, dqflag),\
+                                  float(gpsStart), float(gpsEnd))
 
     # Display segments for which this flag is true
-    print "Segments for which the ANALYSIS READY Flag is active: {0}".format(analysis_ready.active)
+    logger.info("Segments for which the {0} Flag "
+                "is active: {1}".format(dqflag, analysis_ready.active))
 
     # get Omicron triggers
-    files = find_trigger_files(detchannelname,'Omicron',
+    files = find_trigger_files(channelName,'Omicron',
     float(gpsStart),float(gpsEnd))
 
     omicrontriggers = EventTable.read(files, format='ligolw.sngl_burst')
@@ -96,15 +136,15 @@ def get_triggers(gpsStart,gpsEnd,detector):
     # Set peakGPS
     omicrontriggers['peakGPS'] = omicrontriggers['peak_time'] + (0.000000001)*omicrontriggers['peak_time_ns']
 
-    print "List of available metadata information for a given glitch provided by omicron: {0}".format(omicrontriggers.keys())
+    logger.info("List of available metadata information for a given glitch provided by omicron: {0}".format(omicrontriggers.keys()))
 
-    print "Number of triggers after SNR and Freq cuts but before ANALYSIS READY flag filtering: {0}".format(len(omicrontriggers))
+    logger.info("Number of triggers after SNR and Freq cuts but before ANALYSIS READY flag filtering: {0}".format(len(omicrontriggers)))
 
     # Filter the raw omicron triggers against the ANALYSIS READY flag.
     vetoed = omicrontriggers['peakGPS'].in_segmentlist(analysis_ready.active)
     omicrontriggers = omicrontriggers[vetoed]
 
-    print "Final trigger length: {0}".format(len(omicrontriggers))
+    logger.info("Final trigger length: {0}".format(len(omicrontriggers)))
 
     return omicrontriggers
 
@@ -167,9 +207,9 @@ def write_subfile(pathToWscanExec):
         subfile.write('executable = {0}\n'.format(pathToWscanExec))
         subfile.write('\n')
         if opts.PostgreSQL:
-            subfile.write('arguments = "--inifile {0} --eventTime $(eventTime) --outDir {1} --pathToModel {2} --uniqueID --ID $(ID) --runML --PostgreSQL"\n'.format(opts.pathToIni,opts.outDir,opts.pathToModel))
+            subfile.write('arguments = "--inifile {0} --eventTime $(eventTime) --outDir {1} --pathToModel {2} --uniqueID --ID $(ID) --runML --PostgreSQL"\n'.format(opts.inifile,opts.outDir,opts.pathToModel))
         elif opts.HDF5:
-            subfile.write('arguments = "--inifile {0} --eventTime $(eventTime) --outDir {1} --pathToModel {2} --uniqueID --ID $(ID) --runML --HDF5"\n'.format(opts.pathToIni,opts.outDir,opts.pathToModel))
+            subfile.write('arguments = "--inifile {0} --eventTime $(eventTime) --outDir {1} --pathToModel {2} --uniqueID --ID $(ID) --runML --HDF5"\n'.format(opts.inifile,opts.outDir,opts.pathToModel))
         subfile.write('getEnv=True\n')
         subfile.write('\n')
         subfile.write('accounting_group_user = scott.coughlin\n')#.format(opts.username))
@@ -252,6 +292,8 @@ def write_subfile_gspysearch(pathTogspysearchExec):
 # Parse commandline arguments
 opts = parse_commandline()
 
+logger = log.Logger('Gravity Spy: Obtaining Omicron Triggers')
+
 # attempt to determine detector based on cluster currently running on
 fullhostname = socket.getfqdn()
 if 'wa' in fullhostname:
@@ -260,6 +302,8 @@ elif 'la' in fullhostname:
     detector = 'L1'
 else:
     detector = opts.detector
+
+logger.info('You are obtaining triggers on {0}'.format(detector))
 
 # Determine location of executables
 proc = subprocess.Popen(['which', 'wscan'],
@@ -271,6 +315,9 @@ proc = subprocess.Popen(['which', 'wscan'],
 if not pathToWscanExec:
     raise ValueError('Cannot locate wscan executable in your path')
 
+logger.info('You are running with the following executable '
+            '{0}'.format(pathToWscanExec))
+
 proc = subprocess.Popen(['which', 'upload'],
                              stdin = subprocess.PIPE,
                              stdout = subprocess.PIPE,
@@ -279,6 +326,9 @@ proc = subprocess.Popen(['which', 'upload'],
 (pathToUploadExec, err) = proc.communicate()
 if not pathToUploadExec:
     raise ValueError('Cannot locate upload executable in your path')
+
+logger.info('You are running with the following upload script ' 
+            '{0}'.format(pathToUploadExec))
 
 proc = subprocess.Popen(['which', 'gspysearch'],
                              stdin = subprocess.PIPE,
@@ -289,6 +339,16 @@ proc = subprocess.Popen(['which', 'gspysearch'],
 if not pathTogspysearchExec:
     raise ValueError('Cannot locate gspysearch executable in your path')
 
+logger.info('You are running with the following db update script '
+            '{0}'.format(pathTogspysearchExec))
+
+cp = ConfigParser()
+cp.read(opts.inifile)
+logger.info('You have chosen the following ini file: {0}'.format(opts.inifile))
+channelName = cp.get('channels', 'channelName')
+logger.info('You have chosen the following channel file: {0}'.format(channelName))
+dqflag = cp.get('dqflag', 'dqflags')
+logger.info('You have chosen the following dqflag: {0}'.format(dqflag))
 
 if opts.HDF5:
     # Determine start and stop time of trigger query.
@@ -304,11 +364,10 @@ if opts.HDF5:
         gpsEnd = opts.gpsEnd
 
     # Take the detector and the channel from the command line and combine them into one string. This is needed for some input later on.
-    detchannelname = detector + ':' + opts.channelname
 
     write_subfile(pathToWscanExec)
 
-    omicrontriggers = get_triggers(gpsStart,gpsEnd,detector)
+    omicrontriggers = get_triggers(gpsStart,gpsEnd,detector, dqflag)
 
     oTriggers = omicrontriggers.to_pandas()
     oTriggers.sort_values('peak_time',ascending=False,inplace=True)
@@ -320,7 +379,7 @@ if opts.HDF5:
 
 elif opts.PostgreSQL:
 
-    engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['QUEST_SQL_USER'],os.environ['QUEST_SQL_PASSWORD']))
+    engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
 
     if not opts.gpsStart:
         tmp = pd.read_sql('glitches',engine)
@@ -334,23 +393,24 @@ elif opts.PostgreSQL:
         gpsEnd = opts.gpsEnd
 
     # Take the detector and the channel from the command line and combine them into one string. This is needed for some input later on.
-    detchannelname = detector + ':' + opts.channelname
 
     write_subfile(pathToWscanExec)
     if opts.upload:
         write_subfile_upload(pathToUploadExec, detector)
         write_subfile_gspysearch(pathTogspysearchExec)
         listOfParentJobs = []
-    omicrontriggers = get_triggers(gpsStart, gpsEnd, detector)
+    omicrontriggers = get_triggers(gpsStart, gpsEnd, detector, dqflag)
 
     oTriggers = omicrontriggers.to_pandas()
     oTriggers = oTriggers.loc[oTriggers.peakGPS > gpsStart]
     if oTriggers.empty:
-        print 'No triggers survived cuts.'
+        logger.info('No triggers survived cuts.')
     else:
         oTriggers.sort_values('peak_time',ascending=False,inplace=True)
         oTriggers['uniqueID'] = oTriggers.peakGPS.apply(id_generator)
         oTriggers['peakGPSforDag'] = oTriggers.peakGPS.apply(repr)
+        oTriggers['event_id'] = oTriggers.event_id.apply(int)
+        oTriggers['process_id'] = oTriggers.process_id.apply(int)
         oTriggers[['peak_time','peak_time_ns','peakGPSforDag','uniqueID','event_id']].apply(write_dagfile,axis=1)
         oTriggers.drop('peakGPSforDag', axis=1, inplace=True)
         if opts.upload:

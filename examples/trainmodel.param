@@ -1,0 +1,1 @@
+THEANO_FLAGS=mode=FAST_RUN,device=cuda,floatX=float32 trainmodel --path-to-trainingset TrainingSet/ --number-of-classes 2 --nb-epoch 7 --fraction-testing 0.125

@@ -34,7 +34,7 @@ Panoptes.connect()
 project = Project.find(slug='zooniverse/gravity-spy')
 
 
-engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['QUEST_SQL_USER'],os.environ['QUEST_SQL_PASSWORD']))
+engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
 
 triggers = pd.read_sql('glitches',engine)
 triggers = triggers.loc[(triggers.UploadFlag == 0) & (triggers.ifo == opts.detector)]

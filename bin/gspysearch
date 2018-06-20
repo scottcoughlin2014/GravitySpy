@@ -27,7 +27,7 @@ gSpySearch.drop('indexID', 1, inplace=True)
 print 'done'
 
 # Load GravitySpy
-engine1 = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['QUEST_SQL_USER'],os.environ['QUEST_SQL_PASSWORD']))
+engine1 = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
 print 'loading GSpyDB ...'
 gSpyDB = pd.read_sql('glitches', engine1)
 print 'done'
@@ -38,6 +38,8 @@ def makelink(x):
     interMediatePath = '/'.join(filter(None,str(x.Filename1).split('/'))[3:-1])
     if x.ifo == 'L1':
         return 'https://ldas-jobs.ligo-la.caltech.edu/~scoughlin/{0}/{1}.png'.format(interMediatePath,x.uniqueID)
+    elif x.ifo == 'V1':
+        return 'https://ldas-jobs.ligo.caltech.edu/~scoughlin/{0}/{1}.png'.format(interMediatePath, x.uniqueID)
     else:
         return 'https://ldas-jobs.ligo-wa.caltech.edu/~scoughlin/{0}/{1}.png'.format(interMediatePath, x.uniqueID)
 
@@ -46,21 +48,23 @@ gSpyDB['imgUrl'] = gSpyDB[['ifo', 'uniqueID', 'Filename1']].apply(makelink,axis=
 gSpyDB['confidence'] = gSpyDB[['1400Ripples','1080Lines','Air_Compressor','Blip', 'Chirp', 'Extremely_Loud', 'Helix', 'Koi_Fish', 'Light_Modulation', 'Low_Frequency_Burst', 'Low_Frequency_Lines','None_of_the_Above', 'No_Glitch', 'Paired_Doves', 'Power_Line','Repeating_Blips', 'Scattered_Light', 'Scratchy', 'Tomte','Violin_Mode', 'Wandering_Line', 'Whistle']].max(axis=1)
 
 gSpyDB['pipeline'] = 'GravitySpy'
-gSpyDB['citizenScore'] = 0.0
+gSpyDB.loc[gSpyDB.citizenScore.isnull(), 'citizenScore'] = 0.0
 gSpyDB['flag'] = 0
 
-gSpyDB = gSpyDB[['uniqueID','ifo','Label','imgUrl', 'snr', 'amplitude','peak_frequency','central_freq','duration','bandwidth','chisq','chisq_dof','peakGPS','confidence', 'ImageStatus', 'pipeline', 'citizenScore', 'flag']]
+gSpyDB = gSpyDB[['uniqueID','ifo','Label','imgUrl', 'snr', 'amplitude','peak_frequency','central_freq','duration','bandwidth','chisq','chisq_dof','peakGPS','confidence', 'ImageStatus', 'pipeline', 'citizenScore', 'flag', 'DQFlag', 'qvalue']]
 
-gSpyDB.columns = ['id', 'ifo', 'label', 'imgUrl', 'snr', 'amplitude', 'peakFreq', 'centralFreq', 'duration', 'bandwidth', 'chisq', 'chisqDof', 'GPStime','confidence', 'imageStatus', 'pipeline', 'citizenScore', 'flag']
+gSpyDB.columns = ['id', 'ifo', 'label', 'imgUrl', 'snr', 'amplitude', 'peakFreq', 'centralFreq', 'duration', 'bandwidth', 'chisq', 'chisqDof', 'GPStime','confidence', 'imageStatus', 'pipeline', 'citizenScore', 'flag', 'dqflag', 'qvalue']
 
+gSpySearch = gSpySearch[['id', 'label', 'confidence', 'imageStatus', 'citizenScore', 'dqflag']]
+gSpySearch.loc[gSpySearch.dqflag.isnull(), 'dqflag'] = 'NoFlag'
+gSpyDB_trimmed = gSpyDB[['id', 'label', 'confidence', 'imageStatus', 'citizenScore', 'dqflag']]
 
 # Now gSpyDB and gSpySearch are the same, time to see what entries are different or new
 
 # First get identical entries and do a diff
 
-"""
-sameEntriesDB = gSpyDB.loc[gSpyDB.id.isin(gSpySearch.id)]
-sameEntriesSearch = gSpySearch.loc[gSpySearch.id.isin(gSpyDB.id)]
+sameEntriesDB = gSpyDB_trimmed.loc[gSpyDB_trimmed.id.isin(gSpySearch.id)]
+sameEntriesSearch = gSpySearch.loc[gSpySearch.id.isin(gSpyDB_trimmed.id)]
 sameEntriesDB = sameEntriesDB.set_index('id')
 sameEntriesSearch = sameEntriesSearch.set_index('id')
 sameEntriesDB.sort_index(inplace=True)
@@ -68,6 +72,7 @@ sameEntriesSearch.sort_index(inplace=True)
 mask = (sameEntriesDB != sameEntriesSearch).any(1)
 sameEntriesDB = sameEntriesDB[mask]
 sameEntriesDB.reset_index(inplace=True)
+print(len(sameEntriesDB))
 
 # We will now updates these rows on gSpySearch
 for iID in sameEntriesDB.id:
@@ -80,7 +85,7 @@ for iID in sameEntriesDB.id:
             SQLCommand = SQLCommand + '''{0} = {1}, '''.format(Column,columnDict[Column])
     SQLCommand = SQLCommand[:-2] + ' WHERE id = \'' + iID + "'"
     engine.execute(SQLCommand)
-"""
+
 # Get new entries
 newEntriesDB = gSpyDB.loc[~gSpyDB.id.isin(gSpySearch.id)]
 print 'Number of new entries...{0}'.format(len(newEntriesDB.loc[~newEntriesDB.confidence.isnull()]))
