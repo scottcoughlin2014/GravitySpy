@@ -1,0 +1,83 @@
+#!/home/gravityspy/.conda/envs/gravityspy-py36/bin/python
+
+# ---- Import standard modules to the python path.
+
+from gravityspy.api.project import GravitySpyProject
+import gravityspy.ml.read_image as read_image
+import gravityspy.ml.labelling_test_glitches as label_glitches
+from gravityspy.utils import log
+import argparse
+import pandas as pd
+import os
+from sqlalchemy.engine import create_engine
+
+def parse_commandline():
+    """Parse the arguments given on the command-line.
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--Filename1", help="Path To File1",
+                        required=True, nargs='+')
+    parser.add_argument("--Filename2", help="Path To File2",
+                        required=True, nargs='+')
+    parser.add_argument("--Filename3", help="Path To File 3",
+                        required=True, nargs='+')
+    parser.add_argument("--Filename4", help="Path to File 4",
+                        required=True, nargs='+')
+    parser.add_argument("--path_to_similarity_model",
+                        help="Path to folder containing trained model",
+                        required=True)
+    args = parser.parse_args()
+
+    return args
+
+args = parse_commandline()
+
+logger = log.Logger('Gravity Spy: Update Similarity Sore')
+# Since we created the images in a special temporary directory we can run os.listdir to get there full
+# names so we can convert the images into ML readable format.
+list_of_images_all = [args.Filename1,
+                  args.Filename2,
+                  args.Filename3,
+                  args.Filename4]
+
+list_of_images_all = zip(list_of_images_all[0],list_of_images_all[1],list_of_images_all[2],list_of_images_all[3])
+
+for list_of_images in list_of_images_all:
+    ID = list_of_images[0].split('/')[-1].split('_')[1]
+    path_to_similarity_model = args.path_to_similarity_model
+
+    logger.info('Converting image to RGB ML readable...')
+
+    image_dataDF = pd.DataFrame()
+    for idx, image in enumerate(list_of_images):
+        logger.info('Converting {0}'.format(image))
+        if not os.path.isfile(image):
+            continue
+        image_data_r, image_data_g, image_data_b = read_image.read_rgb(image,
+                                      resolution=0.3)
+
+        image_dataDF[image.split('/')[-1]] = [[image_data_r, image_data_g, image_data_b]]
+
+    if not os.path.isfile(image):
+        continue
+
+    image_dataDF['gravityspy_id'] = ID
+
+    # Now label the image
+    logger.info('Obtaining feature space of image...')
+    features, ids = label_glitches.get_multiview_feature_space(image_data=image_dataDF,
+                                          semantic_model_name='{0}'.format(path_to_similarity_model),
+                                          image_size=[140, 170],
+                                          order_of_channels='channels_last',
+                                          verbose=False)
+
+    features = pd.DataFrame(features)
+    features['gravityspy_id'] = ID
+    logger.info('Uploading to database...')
+    engine = create_engine(
+                           'postgresql://{0}:{1}'\
+                           .format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD'])\
+                           + '@gravityspy.ciera.northwestern.edu:5432/gravityspy')
+    features.to_sql('similarity_index_o3', engine, index=False, if_exists='append')
+    engine.dispose()
+    logger.info('Done')

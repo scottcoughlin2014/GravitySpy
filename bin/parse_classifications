@@ -7,24 +7,51 @@ import pandas as pd
 import ast
 import numpy as np
 import os, sys
-import ast
 import pdb
 import datetime
 import collections
 import operator
+import argparse
 
-from gravityspy.API.getLabelDict import getAnswers
-from gravityspy.API import getGoldenImages
+from gravityspy.api.project import GravitySpyProject
 
 ########################
 ####### Functions ######
 #########################
 
-engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
+def parse_commandline():
+    """Parse the arguments given on the command-line.
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--project-info-pickle",
+                        help="This pickle file holds information "
+                        "about what workflows a image with what "
+                        "confidence label should go into",
+                        required=True)
+    parser.add_argument("--database",
+                        help="The database to save the classifications to.")
+    parser.add_argument("--filename",
+                        help="The local hdf5 to save the classifications to.")
+    parser.add_argument("--refresh-pickle", action="store_true", default=False,
+                        help="Are workflow answers out of date?"
+                        )
+    parser.add_argument("--last-id", type=int,
+                        help="The id after which you would like "
+                        "the next 100 classifications")
 
-# This function translates the string answer to an integer value.
-def extract_choiceINT(x):
-    return answersDict[x]
+    args = parser.parse_args()
+
+    if args.database is None and args.filename is None:
+        raise parser.error('Must specify a filename or database to save '
+                           'classifications to')
+
+    if args.database is not None and args.filename is not None:
+        raise parser.error('Must specifyy only one of filename or database.')
+
+    return args
+
+def extract_choice_int(x):
+    return answers_dict_level4[x]
 
 #This function generically flatten a dict
 def flatten(d, parent_key='', sep='_'):
@@ -39,19 +66,54 @@ def flatten(d, parent_key='', sep='_'):
             items.append((new_key, v))
     return dict(items)
 
+
+args = parse_commandline()
+
+if args.database is not None:
+    sql = True
+    hdf5 = False
+if args.filename is not None:
+    hdf5 = True
+    sql = False
+gspyproject = GravitySpyProject.load_project_from_cache(args.project_info_pickle)
+
 # This is the current version of the integer to string dict
-answers = getAnswers('1104')
-answersDictRev =  dict(enumerate(sorted(answers[2360].keys())))
-answersDict = dict((str(v),k) for k,v in answersDictRev.iteritems())
+answers_level4 = gspyproject.get_answers(workflow=7767)
+answers_dict_rev_level4 =  dict(enumerate(sorted(answers_level4['7767'].keys())))
+answers_dict_level4 = dict((str(v),k) for k,v in answers_dict_rev_level4.items())
+answers_dict_level4['VIOLIN'] = 19
+answers_dict_level4['NONE'] = 12
+answers_dict_level4['POWER'] = 14
+answers_dict_level4['REPEATING'] = 15
+answers_dict_level4['WANDERINGLINE'] = 20
+answers_dict_level4['SCATTERED'] = 16
+answers_dict_level4['KOI FISH'] = 7
+answers_dict_level4['VIOLIN MODE HARMONIC'] = 19
+answers_dict_level4['POWER LINE (60 HZ)'] = 14
+
+
+answers_virgo = gspyproject.get_answers(workflow=7501)
+answers_dict_rev_virgo =  dict(enumerate(sorted(answers_virgo['7501'].keys())))
+answers_dict_virgo = dict((str(v),k) for k,v in answers_dict_rev_virgo.items())
+
+
+answers_dict_virgo.update(answers_dict_level4)
+answers_dict_level4 = answers_dict_virgo.copy()
 
 # Obtain workflow order
-workflowOrder = [int(str(i)) for i in Project.find('1104').raw['configuration']['workflow_order']]
-levelWorkflowDict = dict(enumerate(workflowOrder))
+workflow_order = [int(str(i)) for i in Project.find('1104').raw['configuration']['workflow_order']]
+level_workflow_dict = dict(enumerate(workflow_order))
 
-# Load lastID that was parsed
-#lastID = "16822410"
-lastID = pd.read_sql("select max(id) from classificationsdev",engine).iloc[0].iloc[0]
-print(lastID)
+# Load last_id that was parsed
+#last_id = "16822410"
+engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu'
+                       ':5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],
+                                                 os.environ['GRAVITYSPY_DATABASE_PASSWD']))
+if args.last_id is None:
+    last_id = pd.read_sql("select max(id) from classificationsdev",engine).iloc[0].iloc[0]
+    print(last_id)
+else:
+    last_id = args.last_id
 
 # Connect to panoptes and query all classifications done on project 1104 (i.e. GravitySpy)
 Panoptes.connect()
@@ -60,17 +122,17 @@ Panoptes.connect()
 classificationsList = []
 
 # Query the last 100 classificaitons made (this is the max allowable)
-allClassifications = Classification.where(scope='project', project_id='1104', last_id='{0}'.format(lastID), page_size='100')
+all_classifications = Classification.where(scope='project', project_id='1104', last_id='{0}'.format(last_id), page_size='100')
 
 # Loop until no more classifications
-for iN in range(0,allClassifications.object_count):
+for iN in range(0,all_classifications.object_count):
     try:
-        classification = allClassifications.next()
+        classification = all_classifications.next()
     except:
         break
 
     # Generically with no hard coding we want to parse all aspects of the
-    # classification metadata. This will ease any changes on the API side and
+    # classification metadata. This will ease any changes on the api side and
     # any changes to the metadata on our side.
 
     try:
@@ -83,20 +145,25 @@ if not classificationsList:
 
 # Now we want to make a panda data structure with all this information
 classifications = pd.DataFrame(classificationsList)
-classifications = classifications.convert_objects(convert_numeric=True) 
+classifications = classifications.convert_objects(convert_numeric=True)
 classifications.created_at = pd.to_datetime(classifications.created_at,infer_datetime_format=True)
 classifications.metadata_started_at = pd.to_datetime(classifications.metadata_started_at,infer_datetime_format=True)
 classifications.metadata_finished_at = pd.to_datetime(classifications.metadata_finished_at,infer_datetime_format=True)
 classifications = classifications.loc[~classifications.annotations_value_choice.isnull()]
 
-# Now we have to handle follow up question parsing very carefully. It is something that is very useful but can be a headache to parse. From the answers dict obtained about we know which answers have follow up questions. As import we know that the classification DF we created will have the format of 'annotations_value_answers_' + "Follow up question" if such a follow up qustion was answered.
-#Check if field is *not* empty
-#if not classifications.filter(regex="annotations_value_answers").empty:
- 
+# Now we have to handle follow up question parsing very carefully.
+# It is something that is very useful but can be a headache to parse.
+# From the answers dict obtained about we know which answers have
+# follow up questions. As import we know that the classification DF we
+# created will have the format of 'annotations_value_answers_' +
+# "Follow up question" if such a follow up qustion was answered.
+# Check if field is *not* empty
+# if not classifications.filter(regex="annotations_value_answers").empty:
 
-# At this point we have generically parsed the classification of the user. The label given by the parser is a string and for the purposes of our exercise converting these strings to ints is useful. After we will append the classifications to the old classifications and save. Then we tackle the information about the image that was classified. 
 
-classifications['annotations_value_choiceINT'] = classifications['annotations_value_choice'].apply(extract_choiceINT)
+# At this point we have generically parsed the classification of the user. The label given by the parser is a string and for the purposes of our exercise converting these strings to ints is useful. After we will append the classifications to the old classifications and save. Then we tackle the information about the image that was classified.
+
+classifications['annotations_value_choiceINT'] = classifications['annotations_value_choice'].apply(extract_choice_int)
 try:
     classifications[['links_user']]
 except:
@@ -105,5 +172,10 @@ except:
 classifications = classifications[['created_at','id','links_project','links_subjects','links_user','links_workflow','metadata_finished_at','metadata_started_at','metadata_workflow_version','annotations_value_choiceINT', 'annotations_value_choice']]
 classifications.loc[classifications.links_user.isnull(),'links_user'] = 0
 classifications.links_user = classifications.links_user.astype(int)
-print classifications['created_at'].iloc[0]
-classifications.to_sql('classificationsdev',engine,index=False,if_exists='append',chunksize=100)
+print(classifications['created_at'].iloc[0])
+
+if sql:
+    classifications.to_sql('{0}'.format(args.database), engine,
+                           index=False,if_exists='append',chunksize=100)
+if hdf5:
+    print(classifications)

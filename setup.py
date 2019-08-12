@@ -64,20 +64,30 @@ setup_requires = [
 ]
 
 install_requires = [
-    'gwpy>=0.10.1',
+    'gwpy >= 0.12',
+    'numpy >= 1.7.1, <=1.15.4',
+    'scipy >= 0.12.1',
+    'matplotlib >= 1.2.0, != 2.1.0, != 2.1.1',
+    'astropy >= 1.1.1, < 3.0.0 ; python_version < \'3\'',
+    'astropy >= 1.1.1 ; python_version >= \'3\'',
     'configparser',
-    'panoptes_client',
-    'pandas>=0.22;python_version>="3.5"',
-    'pandas<0.21;python_version=="3.4"',
-    'pandas>=0.22;python_version=="2.7"',
-    'h5py',
-    'psycopg2-binary',
-    'SQLAlchemy',
-    'scikit_image',
-    'keras==2.1.6',
-    'Theano==1.0.1',
-    'tensorflow-gpu',
-    'tables',
+    'pandas >= 0.22 ; python_version >= \'3.5\'',
+    'pandas < 0.21 ; python_version == \'3.4\'',
+    'pandas >= 0.22 ; python_version == \'2.7\'',
+    'tables > 3.0.0',
+    'h5py >= 1.3',
+    'panoptes-client >= 1.0.3',
+    'psycopg2-binary >= 2.7.5',
+    'sqlalchemy >= 1.2.12',
+    'scikit_image >= 0.14.0',
+    'keras == 2.1.6',
+    'Theano == 1.0.1',
+    'gwtrigfind >= 0.7',
+    'lscsoft-glue >= 1.59.3 ',
+    'lalsuite >= 6.49',
+    'scikit-learn >= 0.20.0',
+    'dqsegdb >= 1.5.0',
+    'mysqlclient >= 1.4.0'
 ]
 
 tests_require = [
@@ -86,11 +96,14 @@ tests_require = [
 
 extras_require = {
     'doc': [
+        'ipython',
         'sphinx',
         'numpydoc',
         'sphinx_rtd_theme',
         'sphinxcontrib_programoutput',
     ],
+    "tf": ["tensorflow>=1.13.0"],
+    "tf_gpu": ["tensorflow-gpu>=1.13.0"],
 }
 
 # enum34 required for python < 3.4
@@ -118,15 +131,21 @@ setup(name=DISTNAME,
       include_package_data=True,
       cmdclass=cmdclass,
       scripts=scripts,
+      url='https://github.com/Gravity-Spy/GravitySpy.git',
       setup_requires=setup_requires,
       install_requires=install_requires,
       tests_require=tests_require,
       extras_require=extras_require,
       test_suite='gravityspy.tests',
+      python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
       use_2to3=True,
       classifiers=[
+          'Development Status :: 4 - Beta',
           'Programming Language :: Python',
-          'Development Status :: 3 - Alpha',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.5',
+          'Programming Language :: Python :: 3.6',
           'Intended Audience :: Science/Research',
           'Intended Audience :: End Users/Desktop',
           'Intended Audience :: Science/Research',

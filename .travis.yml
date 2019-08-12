@@ -1,5 +1,11 @@
 language: python
 
+env:
+  global:
+    - PIP_FLAGS="--quiet"
+    - KERAS_BACKEND="theano"
+    - MPLBACKEND='agg'
+
 python:
   - '2.7'
   - '3.4'
@@ -13,15 +19,12 @@ install:
   - python -m pip install .
 
 before_script:
-  - python -m pip install coveralls "pytest>=3.1" pytest-runner sphinx numpydoc sphinx-bootstrap-theme sphinxcontrib-programoutput sphinx_rtd_theme
+  - python -m pip install coveralls "pytest>=3.1" pytest-runner ipython sphinx numpydoc sphinx-bootstrap-theme sphinxcontrib-programoutput sphinx_rtd_theme
 
 script:
   # run unit tests
   - coverage run ./setup.py test
   - coverage run --append `which wscan` --help
-
-  # build documentation
-  - cd docs && make html; cd ../
 
 after_success:
 - coveralls

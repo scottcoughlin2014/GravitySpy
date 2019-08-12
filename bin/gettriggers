@@ -43,6 +43,8 @@ def parse_commandline():
                                   help="gps End Time If not supplied will "
                                        "attempt to imply from datatable",
                                   default=0)
+    parser.add_option("--frame-file",
+                      help="A file containing graviational wave data")
     parser.add_option("--freqHigh", help="upper frequency bound cut off "
                                          "for the glitches. [Default: 2048]",
                                     type=int, default=2048)
@@ -55,6 +57,8 @@ def parse_commandline():
                                    type=float)
     parser.add_option("--outDir", help="Outdir of omega scan and omega scan "
                                        "webpage (i.e. your html directory)")
+    parser.add_option("--omicron-trigger-file",
+                      help="A file containing Omicron Triggers ")
     parser.add_option("--inifile", help="Path to ini file")
     parser.add_option("--pathToModel", default='./ML/trained_model/',
                                        help="Path to trained model")
@@ -303,7 +307,32 @@ elif 'la' in fullhostname:
 else:
     detector = opts.detector
 
-logger.info('You are obtaining triggers on {0}'.format(detector))
+omicron_trigger_file = opts.omicron_trigger_file
+frame_file = opts.frame_file
+
+if os.path.isfile(omicron_trigger_file):
+    read_from_trigger_file = True
+else:
+    read_from_trigger_file = False
+
+if os.path.isfile(frame_file):
+    read_from_frame_file = True
+else:
+    read_from_frame_file = False
+
+if read_from_trigger_file:
+    logger.info('You have selected to analyze the following supplied '
+                'omicron triggers {0}'.format(omicron_trigger_file))
+else:
+    logger.info('You are obtaining omicron triggers on the fly '
+                'for the following detector: {0}'.format(detector))
+
+if read_from_frame_file:
+    logger.info('You have selected to analyze the following supplied '
+                'data file {0}'.format(frame_file))
+else:
+    logger.info('You are obtaining data on the fly '
+                'for the following detector: {0}'.format(detector))
 
 # Determine location of executables
 proc = subprocess.Popen(['which', 'wscan'],

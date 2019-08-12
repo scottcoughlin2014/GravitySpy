@@ -1,0 +1,2 @@
+include versioneer.py
+include gravityspy/_version.py

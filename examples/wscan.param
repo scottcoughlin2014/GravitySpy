@@ -1,1 +1,1 @@
-wscan --inifile ..//Production/wini.ini --project-info-pickle 1104.pkl --eventTime 1127700030.877928972 --outDir ./public_html/GravitySpy/Test/ --uniqueID --ID 123abc1234 --HDF5 --runML --pathToModel ../bin
+wscan --channel-name L1:GDS-CALIB_STRAIN --frametype L1_HOFT_C00 --project-info-pickle 1104.pkl --event-time 1127700030.877928972 --plot-directory ./public_html/GravitySpy/Test/ --hdf5 --gravityspy-id --id 123abc1234 --path-to-cnn-model ../models/O3-multiview-classifer.h5 --path-to-semantic-file ../models/similarity-model-O3.h5 

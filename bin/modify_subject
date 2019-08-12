@@ -12,8 +12,8 @@ import pdb
 from sqlalchemy.engine import create_engine
 import time
 
-from gravityspy.API import getGoldenImages
-from gravityspy.API.getLabelDict import getAnswers
+from gravityspy.api import getGoldenImages
+from gravityspy.api.getLabelDict import getAnswers
 
 def parse_commandline():
     """
@@ -110,8 +110,8 @@ if ZooniverseID:
     if TrainingSet and GoldenImage  and not opts.doRemove:   
         print "If you want to remove from golden set and training set, add --doRemove flag"
     elif TrainingSet and GoldenImage  and opts.doRemove:
-        # Removing from golden set on API
-        print 'Removing from golden set on API'
+        # Removing from golden set on api
+        print 'Removing from golden set on api'
         for (iSubjectSet, iSubject) in SubjectSets.iteritems():
             subjectset=SubjectSet.find(iSubjectSet)
             print 'Removing {0} from {1}'.format(iSubject,subjectset)
@@ -140,7 +140,7 @@ if ZooniverseID:
                     print 'No golden set for workflow {0}, process still running and working'.format(k)
 
         if not goldenSets:
-            raise ValueError('Label given does not match enough with API answer to be excepted')
+            raise ValueError('Label given does not match enough with api answer to be excepted')
 
         newGold = Subject.find(ZooniverseID)
         oldSubjectSet = str(newGold.raw['links']['subject_sets'][0])
@@ -191,8 +191,8 @@ elif UniqueID:
     if TrainingSet and GoldenImage  and not opts.doRemove:
         print "If you want to remove from golden set and training set, add --doRemove flag"
     elif TrainingSet and GoldenImage  and opts.doRemove:
-        # Removing from golden set on API
-        print 'Removing from golden set on API'
+        # Removing from golden set on api
+        print 'Removing from golden set on api'
         for (iSubjectSet, iSubject) in SubjectSets.iteritems():
             subjectset=SubjectSet.find(iSubjectSet)
             print 'Removing {0} from {1}'.format(iSubject,subjectset)

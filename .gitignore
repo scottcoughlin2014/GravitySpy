@@ -8,6 +8,7 @@
 /build/
 /dist/
 /gravityspy.egg-info
+/plots/
 /.eggs/
 
 # documentation products

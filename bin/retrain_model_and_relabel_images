@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+
+from gravityspy.table.events import Events
+from astropy.table import vstack
+
+# Definite Command line arguments here
+
+new_class = Events.fetch('gravityspy',
+                         'retrain_model_newclass',
+                         db='gravityspytools',
+                         user=os.getenv('GRAVITYSPYTOOLS_DATABASE_USER', None),
+                         passwd=os.getenv('GRAVITYSPYTOOLS_DATABASE_PASSWD', None))
+
+new_class_ids = new_class['new_subjects'][0]
+
+new_class_more_info = Events.fetch('gravityspy',
+                                   'glitches '
+                                   'WHERE "uniqueID" IN (\'{0}\')'
+                                   ''.format(str("','".join(new_class_ids))),
+                                    columns=['ifo', 'uniqueID', 'Label', 'imgUrl1',
+                                             'imgUrl2', 'imgUrl3', 'imgUrl4'],
+                                    )
+
+new_class_more_info['Label'] = new_class['new_class_name'][0]
+
+orginal_trainingset = Events.fetch('gravityspy',
+                                   'trainingsetv1d1',
+                                    columns=['ifo', 'uniqueID', 'Label', 'imgUrl1',
+                                             'imgUrl2', 'imgUrl3', 'imgUrl4'])
+
+all_data = Events(vstack([new_class_more_info, orginal_trainingset]))

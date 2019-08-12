@@ -1,0 +1,113 @@
+#!/usr/bin/env python
+
+from panoptes_client import *
+
+import pandas
+import ast
+import numpy as np
+import os, sys
+import argparse
+import collections
+import operator
+
+from sqlalchemy.engine import create_engine
+from gravityspy.api.project import GravitySpyProject
+from gwpy.table import EventTable
+
+def parse_commandline():
+    """Parse the arguments given on the command-line.
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--project-info-pickle",
+                        help="This pickle file holds information"
+                        "about what levels a image with what"
+                        "confidence label should go into",
+                        required=True)
+    parser.add_argument("--update-database", action="store_true",
+                        default=False,
+                        help="Officially update the database?")
+    parser.add_argument("--update-website", action="store_true",
+                        default=False,
+                        help="Officially update user preferences on the website")
+    args = parser.parse_args()
+
+
+    return args
+
+args = parse_commandline()
+
+gspyproject = GravitySpyProject.load_project_from_cache(args.project_info_pickle)
+
+level_dict = dict(enumerate(gspyproject.workflow_order))
+level_workflow_dict = dict((v, k + 1) for k, v in
+                           level_dict.items())
+level_workflow_dict[2360] = 4
+level_workflow_dict[2117] = 7
+
+# Obtain what level a user should be on based ont he highest level
+# they have done a classificaiton in before
+init_user_levels = EventTable.fetch('gravityspy', 'classificationsdev GROUP BY links_user, links_workflow',
+                                     columns = ['links_user', 'links_workflow']).to_pandas()
+init_user_levels['init_level'] = init_user_levels['links_workflow'].apply(lambda x: level_workflow_dict[x])
+init_levels = init_user_levels.groupby('links_user').max().init_level
+user_status_init = pandas.DataFrame({'userID' : init_levels.index.tolist(),
+                                     'init_level' : init_levels.tolist()})
+user_status_init = user_status_init.loc[user_status_init.userID !=0]
+user_status_init['init_workflow'] = user_status_init['init_level'].apply(lambda x: level_dict[x -1])
+
+# Calculate a users skill level to see if they should be promoted
+user_confusion_matrices = gspyproject.calculate_confusion_matrices()
+
+user_levels = gspyproject.determine_level()
+
+engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
+query = 'WITH foo as (SELECT id, links_user, links_workflow FROM classificationsdev WHERE links_workflow IN (2360, 7766)) SELECT links_user, count(id) FROM foo GROUP BY links_user HAVING count(id) > 25'
+virgo_promotion = pandas.read_sql(query, engine)
+# Special virgo promotion
+user_levels.loc[(user_levels.curr_level == 5) & (user_levels.userID.isin(virgo_promotion.links_user)), 'curr_level'] = 6
+
+# Merge user Status DB with DB containing the init_level DB
+# which demonstrates what level  a user *should* be on at this point
+current_status = pandas.read_sql('current_user_status', engine)
+userstatus_db_init = current_status.merge(user_levels, how='outer')
+userstatus_db_init = userstatus_db_init.fillna(0)
+userstatus_db_init = userstatus_db_init.astype(int)
+
+# Determine users who need updating
+# These are users whose initial level is less than there promotion level level
+updates = userstatus_db_init.loc[userstatus_db_init['init_level'] <
+                                 userstatus_db_init['curr_level']]
+
+# Now we would like to save current_user_status DB with the updates from init level updated with curr level
+userstatus_db_init.loc[userstatus_db_init['init_level'] < userstatus_db_init['curr_level'], 'init_level'] = \
+    userstatus_db_init.loc[userstatus_db_init['init_level'] < userstatus_db_init['curr_level'], 'curr_level']
+current_user_status = userstatus_db_init[['userID', 'init_level']]
+
+for level in range(1,8):
+    print('Level {0}: {1}'.format(level, len(current_user_status.loc[current_user_status.init_level == level])))
+
+# Now update user settings
+if args.update_website:
+    Panoptes.connect()
+    project = Project.find(slug='zooniverse/gravity-spy')
+
+    def update_settings(x):
+        try:
+            user = User.find(x.userID)
+            new_settings = {"workflow_id": "{0}".format(level_dict[x.curr_level - 1])}
+            print(user)
+            print(new_settings)
+            ProjectPreferences.save_settings(project=project, user=user, settings=new_settings)
+        except:
+            print('This user promotion failed: {0}'.format(x.userID))
+
+    updates.apply(update_settings, axis=1)
+
+if args.update_database:
+    # save new user Status
+    for irow in updates.iterrows():
+        SQLCommand = 'UPDATE \"current_user_status\" SET \"init_level\" = {0} WHERE \"userID\" = {1}'.format(irow[1][['curr_level']].iloc[0], irow[1][['userID']].iloc[0])
+        result = engine.execute(SQLCommand)
+        if not result.rowcount:
+            print('New User {0}'.format(irow[1][['userID']].iloc[0]))
+            pandas.DataFrame({'userID' : irow[1]['userID'], 'init_level' : irow[1]['curr_level']},index=[0])[['userID', 'init_level']].to_sql('current_user_status', engine, index=False, if_exists='append')

@@ -1,0 +1,84 @@
+#!/usr/bin/env python
+
+import argparse,os,string,random,pdb,socket,subprocess
+import pandas as pd
+import numpy
+from gravityspy.utils import log
+from sqlalchemy.engine import create_engine
+
+def parse_commandline():
+    """Parse the arguments given on the command-line.
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--ifo", help="Interferometer of images to update",
+                        required=True)
+    parser.add_argument("--path_to_similarity_model",
+                        help="Path to folder containing trained model",
+                        required=True)
+    args = parser.parse_args()
+
+    return args
+
+def write_subfile(path_to_update_score):
+    for d in ['logs', 'condor']:
+        if not os.path.isdir(d):
+            os.makedirs(d)
+    with open('./condor/gravityspy.sub', 'w') as subfile:
+        subfile.write('universe = vanilla\n')
+        subfile.write('executable = {0}\n'.format(path_to_update_score))
+        subfile.write('\n')
+        subfile.write('arguments = "--Filename1 $(Filename1) --Filename2 $(Filename2) --Filename3 $(Filename3) --Filename4 $(Filename4) --path_to_similarity_model {0}"\n'.format(args.path_to_similarity_model))
+        subfile.write('getEnv=True\n')
+        subfile.write('\n')
+        subfile.write('accounting_group_user = scott.coughlin\n')#.format(opts.username))
+        subfile.write('accounting_group = ligo.dev.o1.detchar.ch_categorization.glitchzoo\n')
+        subfile.write('\n')
+        subfile.write('priority = 0\n')
+        subfile.write('request_memory = 1000\n')
+        subfile.write('\n')
+        subfile.write('error = logs/gravityspy-$(jobNumber).err\n')
+        subfile.write('output = logs/gravityspy-$(jobNumber).out\n')
+        subfile.write('notification = Error\n')
+        subfile.write('queue 1')
+        subfile.close()
+
+
+args = parse_commandline()
+
+engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
+
+logger = log.Logger('Gravity Spy: Getting New Feature Space Data')
+
+logger.info('You are relabeling triggers from {0}'.format(args.ifo))
+
+# Determine location of executables
+proc = subprocess.Popen(['which', 'update_similarity_score'],
+                             stdin = subprocess.PIPE,
+                             stdout = subprocess.PIPE,
+                             stderr = subprocess.PIPE
+                         )
+(path_to_update_score, err) = proc.communicate()
+if not path_to_update_score:
+    raise ValueError('Cannot locate update_similarity_score executable in your path')
+
+path_to_update_score = path_to_update_score.decode('ascii')
+write_subfile(path_to_update_score)
+
+# Load classifications, current user DB status and golden images from DB
+glitches = pd.read_sql('SELECT "Filename1", "Filename2", "Filename3", "Filename4" FROM glitches_v2d0 WHERE ifo = \'{0}\''.format(args.ifo), engine)
+glitches = glitches.loc[glitches.Filename1 != '']
+glitches = numpy.array_split(glitches, 1000)
+with open('gravityspy_update_deeplayer_scores.dag','a+') as dagfile:
+    for idf in glitches:
+        idf['indexer'] = idf.index
+        dagfile.write('JOB {0} ./condor/gravityspy.sub\n'.format(idf.indexer.iloc[0]))
+        dagfile.write('RETRY {0} 1\n'.format(idf.indexer.iloc[0]))
+        dagfile.write('VARS {0} jobNumber="{0}" Filename1="{1}" '
+                      'Filename2="{2}" Filename3="{3}" '
+                      'Filename4="{4}"'.format(
+                          idf.indexer.iloc[0],
+                          ' '.join(idf.Filename1.tolist()),
+                          ' '.join(idf.Filename2.tolist()),
+                          ' '.join(idf.Filename3.tolist()),
+                          ' '.join(idf.Filename4.tolist())))
+        dagfile.write('\n\n')

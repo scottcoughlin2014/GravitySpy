@@ -6,7 +6,9 @@ import os
 from matplotlib import use
 use('agg')
 
-import gravityspy.ML.train_classifier as train_classifier
+import gravityspy.ml.train_classifier as train_classifier
+import pandas
+import h5py
 
 # Definite Command line arguments here
 
@@ -28,9 +30,15 @@ def parse_commandline():
                               default=os.path.join('pickeleddata',
                                                    'trainingset.pkl')
                        )
-    parser.add_argument("--path-to-trained-model",
-                        help="folder where the final trained model will go.",
-                        default='model')
+    parser.add_argument("--model-name",
+                        help="what you would like to model filename to be",
+                        default='multi_view_classifier.h5')
+    parser.add_argument("--order-of-channels",
+                        help="Are you running with Theano and "
+                             "Tensorflow backend? If tensorflow "
+                             "than you want channels_last and if "
+                             "theano channels_first",
+                        default='channels_last')
     parser.add_argument("--batch-size", type=int, default=30,
                         help="defines the batch size, 30 is a reasonable size")
     parser.add_argument("--nb-epoch", type=int, default=20,
@@ -66,11 +74,13 @@ args = parse_commandline()
 
 # Pixelate and pickle the traiing set images
 if args.path_to_trainingset:
-    train_classifier.pickle_trainingset(
+    data = train_classifier.pickle_trainingset(
         path_to_trainingset=args.path_to_trainingset,
         save_address=args.trainingset_pickle_file,
         verbose=args.verbose
         )
+else:
+    data = pandas.read_pickle(args.trainingset_pickle_file)
 
 # Check if teting percentage is 0, set to None
 if not args.fraction_testing:
@@ -79,9 +89,13 @@ else:
     fraction_testing = args.fraction_testing
 
 # Train model
-train_classifier.make_model(
-    data=args.trainingset_pickle_file,
-    model_folder=args.path_to_trained_model,
+class_names = sorted(data.Label.unique())
+class_names = [n.encode("ascii", "ignore") for n in class_names]
+
+# Train model
+model = train_classifier.make_model(
+    data=data,
+    order_of_channels=args.order_of_channels,
     batch_size=args.batch_size,
     nb_epoch=args.nb_epoch,
     nb_classes=args.number_of_classes,
@@ -92,3 +106,10 @@ train_classifier.make_model(
     random_seed=args.randomseed,
     verbose=True
     )
+
+model.save(args.model_name)
+
+f = h5py.File(args.model_name, 'r+')
+grp = f.create_group('labels')
+grp.create_dataset('labels', (len(class_names), 1), 'S100', class_names)
+f.close()

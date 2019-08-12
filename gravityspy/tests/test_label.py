@@ -6,16 +6,23 @@ __author__ = 'Scott Coughlin <scott.coughlin@ligo.org>'
 import os
 os.environ["KERAS_BACKEND"] = "theano"
 
-import gravityspy.ML.make_pickle_for_linux as make_pickle
-import gravityspy.ML.labelling_test_glitches as label_glitches
-import gravityspy.ML.train_classifier as train_classifier
+import gravityspy.ml.read_image as read_image
+import gravityspy.ml.labelling_test_glitches as label_glitches
+import gravityspy.ml.train_classifier as train_classifier
 
 import pandas as pd
 import numpy
 
 TEST_IMAGES_PATH = os.path.join(os.path.split(__file__)[0], 'data',
 'images')
-MODEL_PATH = os.path.join(os.path.split(__file__)[0], '..', '..', 'bin')
+MODEL_NAME_CNN = os.path.join(os.path.split(__file__)[0], '..', '..', 'models',
+                              'multi_view_classifier.h5')
+MODEL_NAME_FEATURE_SINGLE_VIEW = os.path.join(os.path.split(__file__)[0], '..', '..', 'models',
+                                              'single_view_model.h5')
+MODEL_NAME_FEATURE_MULTIVIEW = os.path.join(os.path.split(__file__)[0], '..', '..', 'models',
+                                            'semantic_idx_model.h5')
+MULTIVIEW_FEATURES_FILE = os.path.join(os.path.split(__file__)[0], 'data',
+                                       'MULTIVIEW_FEATURES.npy')
 
 SCORE = 0.9997797608375549 
 
@@ -35,6 +42,8 @@ FEATURES = numpy.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 34.673343658447266, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
 
+MULTIVIEW_FEATURES = numpy.load(MULTIVIEW_FEATURES_FILE)
+
 class TestGravitySpyML(object):
     """`TestCase` for the GravitySpy
     """
@@ -47,7 +56,7 @@ class TestGravitySpyML(object):
 
         image_dataDF = pd.DataFrame()
         for idx, image in enumerate(list_of_images):
-            image_data = make_pickle.main(os.path.join(
+            image_data = read_image.read_grayscale(os.path.join(
                                                        TEST_IMAGES_PATH,
                                                        image),
                                           resolution=0.3)
@@ -55,12 +64,12 @@ class TestGravitySpyML(object):
             image_dataDF[image] = [image_data]
 
         # Now label the image
-        scores, MLlabel = label_glitches.label_glitches(
-                                                        image_dataDF,
-                                                        '{0}'.format(
-                                                              MODEL_PATH),
-                                                        [140, 170],
-                                                        False)
+        scores, MLlabel, _, _, _, _, _, = label_glitches.label_glitches(
+                                                                        image_dataDF,
+                                                                        '{0}'.format(
+                                                                        MODEL_NAME_CNN),
+                                                                        [140, 170],
+                                                                        False)
 
         confidence = float(scores[0][MLlabel])
         assert confidence == SCORE
@@ -76,13 +85,40 @@ class TestGravitySpyML(object):
         image_dataDF = pd.DataFrame()
         for idx, image in enumerate(list_of_images):
             if '1.0.png' in image:
-                image_data = make_pickle.main(os.path.join(TEST_IMAGES_PATH, image), resolution=0.3)
+                image_data = read_image.read_grayscale(os.path.join(TEST_IMAGES_PATH, image), resolution=0.3)
                 image_dataDF[image] = [image_data]
 
         # Determine features
         features = label_glitches.get_feature_space(image_data=image_dataDF,
-                                              semantic_model_adr='{0}'.format(MODEL_PATH),
+                                              semantic_model_name='{0}'.format(MODEL_NAME_FEATURE_SINGLE_VIEW),
                                               image_size=[140, 170],
                                               verbose=False)
 
         numpy.testing.assert_array_almost_equal(features, FEATURES, decimal=3)
+
+
+    def test_multiview_rgb(self):
+
+        list_of_images = []
+        for ifile in os.listdir(TEST_IMAGES_PATH):
+            if 'spectrogram' in ifile:
+                list_of_images.append(ifile)
+
+        image_dataDF = pd.DataFrame()
+        for idx, image in enumerate(list_of_images):
+            image_data_r, image_data_g, image_data_b = read_image.read_rgb(os.path.join(
+                                                       TEST_IMAGES_PATH,
+                                                       image),
+                                          resolution=0.3)
+
+            image_dataDF[image] = [[image_data_r, image_data_g, image_data_b]]
+
+        # Now label the image
+        features, _ = label_glitches.get_multiview_feature_space(
+                                                        image_dataDF,
+                                                        '{0}'.format(
+                                                              MODEL_NAME_FEATURE_MULTIVIEW),
+                                                        [140, 170],
+                                                        False)
+        numpy.testing.assert_array_almost_equal(features, MULTIVIEW_FEATURES,
+                                                decimal=3)

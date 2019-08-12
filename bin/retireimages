@@ -13,12 +13,12 @@ import collections
 import operator
 
 from sqlalchemy.engine import create_engine
-from gravityspy.API.project import GravitySpyProject
+from gravityspy.api.project import GravitySpyProject
 
 engine = create_engine('postgresql://{0}:{1}@gravityspy.ciera.northwestern.edu:5432/gravityspy'.format(os.environ['GRAVITYSPY_DATABASE_USER'],os.environ['GRAVITYSPY_DATABASE_PASSWD']))
 
 gspyproject = GravitySpyProject.load_project_from_cache('1104.pkl')
-# Obtain number of classes from API
+# Obtain number of classes from api
 workflowDictSubjectSets = gspyproject.get_level_structure(IDfilter='O2')
 
 # Must determine classes from dict

@@ -30,3 +30,15 @@ obtained `virtualenv <https://virtualenv.pypa.io/en/latest/>`_
     . ~/opt/GravitySpy-pyXx/bin/activate
     python -m pip install --upgrade --quiet pip setuptools
     pip install git+https://github.com/Gravity-Spy/GravitySpy.git
+
+
+=======================
+Pre-Existing VirtualEnv
+=======================
+
+On CIT, LLO, and LHO
+
+.. code-block:: bash
+
+   $ source ~gravityspy/.gravityspy_py36
+   $ source ~gravityspy/.gravityspy_py27

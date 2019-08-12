@@ -4,7 +4,7 @@
 __author__ = 'Scott Coughlin <scott.coughlin@ligo.org>'
 
 import os
-from gravityspy.API.project import GravitySpyProject
+from gravityspy.api.project import GravitySpyProject
 
 
 PICKLE_PATH = os.path.join(os.path.split(__file__)[0], 'data',
